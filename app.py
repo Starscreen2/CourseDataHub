@@ -1,4 +1,6 @@
 import os
+import csv
+import re
 from flask import Flask, jsonify, request, send_from_directory, render_template
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -13,6 +15,28 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
+
+# Load instructor data from CSV
+instructor_data = {}
+try:
+    with open('attached_assets/rutgers_salaries.csv', 'r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            name = row['Name'].strip().upper() if row['Name'] else ""
+            if name:
+                instructor_data[name] = {
+                    'name': row['Name'],
+                    'campus': row['Campus'],
+                    'department': row['Department'],
+                    'title': row['Title'],
+                    'hire_date': row['Hire Date'],
+                    'base_pay': row['Base Pay'],
+                    'gross_pay': row['Gross Pay']
+                }
+    logger.info(f"Loaded information for {len(instructor_data)} instructors")
+except Exception as e:
+    logger.error(f"Error loading instructor data: {str(e)}")
+    instructor_data = {}
 
 # Configure CORS
 @app.after_request
@@ -80,6 +104,48 @@ def get_courses():
         return jsonify({
             "status": "error",
             "message": "Failed to fetch course data"
+        }), 500
+
+@app.route('/api/instructor/<name>')
+@limiter.limit("100 per minute")
+def get_instructor_info(name):
+    try:
+        # Try to find exact match first
+        instructor_info = instructor_data.get(name.upper())
+        
+        # If no exact match, try to find a partial match
+        if not instructor_info:
+            # Convert last, first format to LAST, FIRST for matching
+            name_parts = name.split(',')
+            if len(name_parts) == 2:
+                search_name = f"{name_parts[0].strip().upper()}, {name_parts[1].strip().upper()}"
+                for instructor_name, info in instructor_data.items():
+                    if search_name in instructor_name:
+                        instructor_info = info
+                        break
+            else:
+                # Try matching just the last name
+                search_last_name = name.strip().upper()
+                for instructor_name, info in instructor_data.items():
+                    if instructor_name.startswith(search_last_name + ",") or instructor_name.startswith(search_last_name + " "):
+                        instructor_info = info
+                        break
+        
+        if instructor_info:
+            return jsonify({
+                "status": "success",
+                "data": instructor_info
+            })
+        else:
+            return jsonify({
+                "status": "not_found",
+                "message": "Instructor information not found"
+            }), 404
+    except Exception as e:
+        logger.error(f"Error fetching instructor information: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to fetch instructor information"
         }), 500
 
 @app.route('/static/<path:path>')

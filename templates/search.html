@@ -80,6 +80,74 @@
             });
         }
 
+        // Function to fetch instructor information
+        function fetchInstructorInfo(instructorName) {
+            return fetch(`/api/instructor/${encodeURIComponent(instructorName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        return data.data;
+                    } else {
+                        return null;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching instructor info:', error);
+                    return null;
+                });
+        }
+
+        // Function to format the instructor card content
+        function formatInstructorCard(info) {
+            if (!info) {
+                return '<div class="instructor-card-not-found">Information not available</div>';
+            }
+
+            return `
+                <h5>${info.name}</h5>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Campus:</span>
+                    <span class="instructor-card-value">${info.campus || 'N/A'}</span>
+                </div>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Department:</span>
+                    <span class="instructor-card-value">${info.department || 'N/A'}</span>
+                </div>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Title:</span>
+                    <span class="instructor-card-value">${info.title || 'N/A'}</span>
+                </div>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Hire Date:</span>
+                    <span class="instructor-card-value">${info.hire_date || 'N/A'}</span>
+                </div>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Base Pay:</span>
+                    <span class="instructor-card-value">${info.base_pay || 'N/A'}</span>
+                </div>
+                <div class="instructor-card-row">
+                    <span class="instructor-card-label">Gross Pay:</span>
+                    <span class="instructor-card-value">${info.gross_pay || 'N/A'}</span>
+                </div>
+            `;
+        }
+
+        // Set up event delegation for instructor hover cards
+        document.addEventListener('mouseover', function(event) {
+            const instructorElement = event.target.closest('.instructor-name');
+            if (instructorElement && !instructorElement.dataset.loaded) {
+                const instructorName = instructorElement.dataset.instructor;
+                const cardElement = instructorElement.querySelector('.instructor-card');
+                
+                instructorElement.dataset.loaded = 'loading';
+                
+                fetchInstructorInfo(instructorName).then(info => {
+                    cardElement.innerHTML = formatInstructorCard(info);
+                    instructorElement.dataset.loaded = 'true';
+                });
+            }
+        });
+
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const search = document.getElementById('search').value;
@@ -147,7 +215,13 @@
                                                             <i class="bi bi-clipboard"></i>
                                                         </button>)
                                                     </h6>
-                                                    <p><strong>Instructors:</strong> ${section.instructors.join(', ') || 'TBA'}</p>
+                                                    <p><strong>Instructors:</strong> ${section.instructors.map(instructor => 
+                                                        `<span class="instructor-name" data-instructor="${instructor}">${instructor}
+                                                            <div class="instructor-card">
+                                                                <div class="instructor-loading">Loading information...</div>
+                                                            </div>
+                                                        </span>`
+                                                    ).join(', ') || 'TBA'}</p>
                                                     <p><strong>Status:</strong> <span class="status-${section.status === 'OPEN' ? 'open' : 'closed'}">${section.status}</span></p>
                                                     ${section.comments ? `<p><strong>Comments:</strong> ${section.comments}</p>` : ''}
                                                     <div class="meeting-times">

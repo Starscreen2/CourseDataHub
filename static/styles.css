@@ -138,3 +138,61 @@ body {
     background-color: #3182ce;
     border-color: #3182ce;
 }
+
+/* Instructor hover card styles */
+.instructor-name {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+    text-decoration: underline;
+    color: #0d6efd;
+}
+
+.instructor-card {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    min-width: 320px;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    padding: 15px;
+    font-size: 0.9em;
+    left: 0;
+    top: 100%;
+    margin-top: 5px;
+    border: 1px solid #e2e8f0;
+}
+
+.instructor-name:hover .instructor-card {
+    display: block;
+}
+
+.instructor-card h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #1a202c;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 5px;
+}
+
+.instructor-card p {
+    margin: 5px 0;
+}
+
+.instructor-card-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.instructor-card-label {
+    font-weight: bold;
+    color: #4a5568;
+    width: 100px;
+}
+
+.instructor-card-value {
+    color: #1a202c;
+    flex-grow: 1;
+}

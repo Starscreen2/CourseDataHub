@@ -16,27 +16,58 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
-# Load instructor data from CSV
+# Load instructor data from CSV with multiple name formats for better matching
 instructor_data = {}
+name_to_row = {}  # Map to find instructor info by different name formats
+
 try:
     with open('attached_assets/rutgers_salaries.csv', 'r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            name = row['Name'].strip().upper() if row['Name'] else ""
-            if name:
-                instructor_data[name] = {
-                    'name': row['Name'],
-                    'campus': row['Campus'],
-                    'department': row['Department'],
-                    'title': row['Title'],
-                    'hire_date': row['Hire Date'],
-                    'base_pay': row['Base Pay'],
-                    'gross_pay': row['Gross Pay']
-                }
-    logger.info(f"Loaded information for {len(instructor_data)} instructors")
+            if not row['Name'] or row['Name'].strip() == "":
+                continue
+
+            # Store original row data
+            instructor_info = {
+                'name': row['Name'],
+                'campus': row['Campus'],
+                'department': row['Department'],
+                'title': row['Title'],
+                'hire_date': row['Hire Date'],
+                'base_pay': row['Base Pay'],
+                'gross_pay': row['Gross Pay']
+            }
+                
+            # Create multiple name formats for better matching
+            original_name = row['Name'].strip()
+            
+            # Format 1: Original as-is
+            name_to_row[original_name.upper()] = instructor_info
+            
+            # Format 2: Last, First
+            name_parts = original_name.split()
+            if len(name_parts) >= 2:
+                last_name = name_parts[-1]
+                first_name = ' '.join(name_parts[:-1])
+                last_first = f"{last_name}, {first_name}".upper()
+                name_to_row[last_first] = instructor_info
+                
+                # Format 3: Last name only - only if it's distinctive enough
+                if len(last_name) > 4:  # Avoid short names like "Lee" matching too many people
+                    name_to_row[last_name.upper()] = instructor_info
+                
+            # Format 4: First Last
+            name_to_row[original_name.upper()] = instructor_info
+            
+            # Store variations without honorifics (MD, PhD, etc.)
+            clean_name = re.sub(r'\s+(?:MD|PhD|Dr\.?|Professor)(?:\s|$)', ' ', original_name, flags=re.IGNORECASE).strip()
+            if clean_name != original_name:
+                name_to_row[clean_name.upper()] = instructor_info
+    
+    logger.info(f"Loaded information for {len(name_to_row)} instructor name variations")
 except Exception as e:
     logger.error(f"Error loading instructor data: {str(e)}")
-    instructor_data = {}
+    name_to_row = {}
 
 # Configure CORS
 @app.after_request
@@ -110,26 +141,34 @@ def get_courses():
 @limiter.limit("100 per minute")
 def get_instructor_info(name):
     try:
-        # Try to find exact match first
-        instructor_info = instructor_data.get(name.upper())
+        logger.debug(f"Looking up instructor info for: {name}")
         
-        # If no exact match, try to find a partial match
+        # Try exact match with our name mapping
+        instructor_info = name_to_row.get(name.upper())
+        
+        # If no exact match, try additional matching techniques
         if not instructor_info:
-            # Convert last, first format to LAST, FIRST for matching
-            name_parts = name.split(',')
-            if len(name_parts) == 2:
-                search_name = f"{name_parts[0].strip().upper()}, {name_parts[1].strip().upper()}"
-                for instructor_name, info in instructor_data.items():
-                    if search_name in instructor_name:
-                        instructor_info = info
-                        break
+            # Try Last, First format if not already in that format
+            if ',' not in name:
+                name_parts = name.split()
+                if len(name_parts) >= 2:
+                    last_name = name_parts[-1]
+                    first_name = ' '.join(name_parts[:-1])
+                    last_first = f"{last_name}, {first_name}".upper()
+                    instructor_info = name_to_row.get(last_first)
+                    
+                    # If still not found, try just the last name
+                    if not instructor_info and len(last_name) >= 4:
+                        instructor_info = name_to_row.get(last_name.upper())
             else:
-                # Try matching just the last name
-                search_last_name = name.strip().upper()
-                for instructor_name, info in instructor_data.items():
-                    if instructor_name.startswith(search_last_name + ",") or instructor_name.startswith(search_last_name + " "):
-                        instructor_info = info
-                        break
+                # Name is already in Last, First format
+                parts = name.split(',', 1)
+                if len(parts) == 2:
+                    last_name = parts[0].strip().upper()
+                    
+                    # Try with just the last name if it's distinctive enough
+                    if len(last_name) >= 4:
+                        instructor_info = name_to_row.get(last_name)
         
         if instructor_info:
             return jsonify({

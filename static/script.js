@@ -36,11 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchTerm) {
             searchResults.innerHTML = '<div class="text-center">Searching...</div>';
 
-            const year = document.getElementById('year').value;
-            const term = document.getElementById('term').value;
-            const campus = document.getElementById('campus').value;
-            
-            fetch(`/api/courses?year=${year}&term=${term}&campus=${campus}&search=${encodeURIComponent(searchTerm)}`)
+            fetch(`/api/courses?name=${encodeURIComponent(searchTerm)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success' && data.data.length > 0) {
@@ -80,26 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="section-item card mb-3">
                                                     <div class="card-body">
                                                         <h6>Section ${section.number} (Index: ${section.index})</h6>
-                                                        <p><strong>Instructors:</strong> 
-                                                            ${section.instructors.map(instructor => `
-                                                                <span class="instructor-name" data-instructor="${instructor}">
-                                                                    ${instructor}
-                                                                    <div class="instructor-hover-card">
-                                                                        <div class="instructor-loading">Loading...</div>
-                                                                        <div class="instructor-data" style="display:none;">
-                                                                            <div class="instructor-field"><strong>Name:</strong> <span class="instructor-full-name"></span></div>
-                                                                            <div class="instructor-field"><strong>Campus:</strong> <span class="instructor-campus"></span></div>
-                                                                            <div class="instructor-field"><strong>Department:</strong> <span class="instructor-department"></span></div>
-                                                                            <div class="instructor-field"><strong>Title:</strong> <span class="instructor-title"></span></div>
-                                                                            <div class="instructor-field"><strong>Hire Date:</strong> <span class="instructor-hire-date"></span></div>
-                                                                            <div class="instructor-field"><strong>Base Pay:</strong> <span class="instructor-base-pay"></span></div>
-                                                                            <div class="instructor-field"><strong>Gross Pay:</strong> <span class="instructor-gross-pay"></span></div>
-                                                                        </div>
-                                                                        <div class="instructor-error" style="display:none;">Information not available</div>
-                                                                    </div>
-                                                                </span>
-                                                            `).join(', ') || 'TBA'}
-                                                        </p>
+                                                        <p><strong>Instructors:</strong> ${section.instructors.join(', ') || 'TBA'}</p>
                                                         <p><strong>Status:</strong> ${section.status}</p>
                                                         ${section.comments ? `<p><strong>Comments:</strong> ${section.comments}</p>` : ''}
                                                         <div class="meeting-times">
@@ -159,96 +136,4 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update status every 30 seconds
     updateStatus();
     setInterval(updateStatus, 30000);
-    
-    // Event delegation for instructor hover cards
-    document.addEventListener('click', function(e) {
-        // Close all hover cards when clicking elsewhere
-        if (!e.target.closest('.instructor-name')) {
-            document.querySelectorAll('.instructor-hover-card').forEach(card => {
-                card.classList.remove('active');
-            });
-        }
-    });
-    
-    // Add event listener for instructor hover functionality using event delegation
-    document.addEventListener('mouseover', function(e) {
-        const instructorElement = e.target.closest('.instructor-name');
-        if (instructorElement) {
-            const hoverCard = instructorElement.querySelector('.instructor-hover-card');
-            if (hoverCard) {
-                // Position the hover card
-                const rect = instructorElement.getBoundingClientRect();
-                hoverCard.style.top = '100%';
-                hoverCard.style.left = '0';
-                
-                // Show the hover card
-                hoverCard.classList.add('active');
-                
-                // Get instructor name
-                const instructorName = instructorElement.getAttribute('data-instructor');
-                
-                // Check if we need to load data
-                const loadingElement = hoverCard.querySelector('.instructor-loading');
-                const dataElement = hoverCard.querySelector('.instructor-data');
-                const errorElement = hoverCard.querySelector('.instructor-error');
-                
-                if (loadingElement.style.display !== 'none') {
-                    // Show loading, hide others
-                    loadingElement.style.display = 'block';
-                    dataElement.style.display = 'none';
-                    errorElement.style.display = 'none';
-                    
-                    // Fetch instructor data
-                    fetch(`/api/instructor/${encodeURIComponent(instructorName)}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            // Hide loading
-                            loadingElement.style.display = 'none';
-                            
-                            if (data.status === 'success') {
-                                // Fill in the data
-                                dataElement.querySelector('.instructor-full-name').textContent = data.data.name || 'N/A';
-                                dataElement.querySelector('.instructor-campus').textContent = data.data.campus || 'N/A';
-                                dataElement.querySelector('.instructor-department').textContent = data.data.department || 'N/A';
-                                dataElement.querySelector('.instructor-title').textContent = data.data.title || 'N/A';
-                                dataElement.querySelector('.instructor-hire-date').textContent = data.data.hire_date || 'N/A';
-                                dataElement.querySelector('.instructor-base-pay').textContent = data.data.base_pay || 'N/A';
-                                dataElement.querySelector('.instructor-gross-pay').textContent = data.data.gross_pay || 'N/A';
-                                
-                                // Show data, hide error
-                                dataElement.style.display = 'block';
-                                errorElement.style.display = 'none';
-                            } else {
-                                // Show error, hide data
-                                dataElement.style.display = 'none';
-                                errorElement.style.display = 'block';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error fetching instructor data:', error);
-                            // Hide loading, show error
-                            loadingElement.style.display = 'none';
-                            dataElement.style.display = 'none';
-                            errorElement.style.display = 'block';
-                        });
-                }
-            }
-        }
-    });
-    
-    // Add event listener for mouse leaving instructor element to close hover card after a delay
-    document.addEventListener('mouseout', function(e) {
-        const instructorElement = e.target.closest('.instructor-name');
-        if (instructorElement) {
-            const hoverCard = instructorElement.querySelector('.instructor-hover-card');
-            if (hoverCard && !hoverCard.contains(e.relatedTarget) && !instructorElement.contains(e.relatedTarget)) {
-                // Add a small delay before hiding to allow for moving to the hover card
-                setTimeout(() => {
-                    if (!hoverCard.contains(document.activeElement)) {
-                        hoverCard.classList.remove('active');
-                    }
-                }, 300);
-            }
-        }
-    });
 });

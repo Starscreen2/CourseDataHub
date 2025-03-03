@@ -68,7 +68,8 @@
             try {
                 const response = await fetch('/static/rutgers_salaries.json');
                 const salaryJson = await response.json();
-                return salaryJson.data;
+                // Check if data property exists, otherwise return the json directly
+                return salaryJson.data || salaryJson;
             } catch (error) {
                 console.error("Failed to load salary data:", error);
                 return [];

@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                 ${instructor.trim()}</span>`
                                                             ).join(', ') || 'TBA'}
                                                         </p>
-                                                        <p><strong>Status:</strong> ${section.status}</p>
+                                                        <p><strong>Status:</strong> <span class="${section.status.toLowerCase() === 'open' ? 'status-open' : 'status-closed'}">${section.status}</span></p>
                                                         <div class="meeting-times">
                                                             <strong>Meeting Times:</strong><br>
                                                             ${section.meeting_times.map(time => `

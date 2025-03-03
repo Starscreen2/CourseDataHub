@@ -249,36 +249,27 @@ class CourseFetcher:
             for course in filtered_courses:
                 try:
                     enriched_course = {
-                        "courseString":
-                        course.get("courseString", ""),
-                        "title":
-                        course.get("title", ""),
-                        "subject":
-                        course.get("subject", ""),
-                        "subjectDescription":
-                        course.get("subjectDescription", ""),
-                        "course_number":
-                        course.get("courseNumber", ""),
-                        "description":
-                        course.get("courseDescription", ""),
-                        "credits":
-                        course.get("credits", ""),
-                        "creditsDescription":
-                        course.get("creditsObject", {}).get("description", ""),
-                        "school":
-                        course.get("school", {}).get("description", ""),
+                        "courseString": course.get("courseString", ""),
+                        "title": course.get("title", ""),
+                        "subject": course.get("subject", ""),
+                        "subjectDescription": course.get("subjectDescription", ""),
+                        "course_number": course.get("courseNumber", ""),
+                        "description": course.get("courseDescription", ""),
+                        "credits": course.get("credits", ""),
+                        "creditsDescription": course.get("creditsObject", {}).get("description", ""),
+                        "school": course.get("school", {}).get("description", ""),
                         "campusLocations": [
                             loc.get("description", "")
                             for loc in course.get("campusLocations", [])
                         ],
-                        "prerequisites":
-                        course.get("preReqNotes", ""),
-                        "coreRequirements": [{
-                            "code":
-                            core.get("coreCode", ""),
-                            "description":
-                            core.get("coreCodeDescription", "")
-                        } for core in course.get("coreCodes", [])],
+                        "prerequisites": course.get("preReqNotes", ""),
+                        "coreRequirements": [
+                            {
+                                "code": core.get("coreCode", ""),
+                                "description": core.get("coreCodeDescription", "")
+                            }
+                            for core in course.get("coreCodes", [])
+                        ],
                         "sections": [
                             self.format_section(section)
                             for section in course.get("sections", [])

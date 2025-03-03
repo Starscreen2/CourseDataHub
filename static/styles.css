@@ -94,10 +94,10 @@ body {
 }
 
 .instructor-name {
-    font-weight: bold;
-    color: var(--color-danger);
+    /* font-weight: bold; */
+    /* color: var(--color-danger); */
     cursor: pointer;
-    text-decoration: underline;
+    /* text-decoration: underline; */
 }
 
 .instructor-name:hover {

@@ -248,6 +248,9 @@ class CourseFetcher:
             enriched_courses = []
             for course in filtered_courses:
                 try:
+                    # Print raw course data to check if "coreCodes" exists
+                    print("DEBUG: Raw course data ->", json.dumps(course, indent=2))
+
                     enriched_course = {
                         "courseString": course.get("courseString", ""),
                         "title": course.get("title", ""),
@@ -259,8 +262,7 @@ class CourseFetcher:
                         "creditsDescription": course.get("creditsObject", {}).get("description", ""),
                         "school": course.get("school", {}).get("description", ""),
                         "campusLocations": [
-                            loc.get("description", "")
-                            for loc in course.get("campusLocations", [])
+                            loc.get("description", "") for loc in course.get("campusLocations", [])
                         ],
                         "prerequisites": course.get("preReqNotes", ""),
                         "coreRequirements": [
@@ -271,14 +273,19 @@ class CourseFetcher:
                             for core in course.get("coreCodes", [])
                         ],
                         "sections": [
-                            self.format_section(section)
-                            for section in course.get("sections", [])
+                            self.format_section(section) for section in course.get("sections", [])
                         ]
                     }
+
+                    # Print extracted core codes to confirm they are working
+                    print("DEBUG: Extracted Core Codes ->", enriched_course["coreRequirements"])
+
                     enriched_courses.append(enriched_course)
+
                 except Exception as e:
                     logger.error(f"Error enriching course data: {str(e)}")
                     continue
+
 
             logger.info(
                 f"Returning {len(enriched_courses)} enriched courses for search: '{search}'"

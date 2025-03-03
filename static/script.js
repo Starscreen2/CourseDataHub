@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                         <div class="col-md-6">
                                             <p><strong>Campus Locations:</strong> ${course.campusLocations.join(', ')}</p>
                                             <p><strong>Prerequisites:</strong> ${course.prerequisites || 'None'}</p>
-                                            <p><strong>Core Codes:</strong> ${course.coreRequirements && course.coreRequirements.length > 0 ? 
+                                            <p><strong>Core Codes:</strong> ${Array.isArray(course.coreRequirements) && course.coreRequirements.length > 0 ? 
                                                 course.coreRequirements.map(core => `${core.code} (${core.description})`).join(', ') : 'N/A'}</p>
                                         </div>
                                     </div>

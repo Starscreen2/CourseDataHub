@@ -278,7 +278,9 @@ class CourseFetcher:
                     }
 
                     # Print extracted core codes to confirm they are working
-                    print("DEBUG: Extracted Core Codes ->", enriched_course["coreRequirements"])
+                    print("DEBUG: Extracted Core Codes ->", json.dumps(enriched_course["coreRequirements"], indent=2))
+                    # Log the type to ensure it's an array
+                    print("DEBUG: Type of coreRequirements ->", type(enriched_course["coreRequirements"]))
 
                     enriched_courses.append(enriched_course)
 

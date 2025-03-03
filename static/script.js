@@ -1,91 +1,87 @@
-document.addEventListener("DOMContentLoaded", async function () {
-    const campusMap = {
-        "1": "College Ave",
-        "2": "Busch",
-        "3": "Livingston", 
-        "4": "Cook/Doug"
-    };
-
-    let salaryData = [];
-
-    // Fetch Rutgers salaries JSON
-    try {
-        const response = await fetch('/static/rutgers_salaries.json'); // Adjust path if needed
-        const salaryJson = await response.json();
-        salaryData = salaryJson.data; // Extract the array from JSON
-    } catch (error) {
-        console.error("Failed to load salary data:", error);
-    }
-
-    // Function to clean and standardize names for matching
-    function normalizeName(name) {
-        if (!name) return "";
-        return name.toLowerCase().trim().replace(/\s+/g, " "); // Trim and normalize spaces
-    }
-
-    // Function to check if an instructor is in the salary dataset
-    function findInstructor(instructorName) {
-        const normalizedInstructor = normalizeName(instructorName);
-
-        return salaryData.find(person => {
-            const normalizedJSONName = normalizeName(person.Name);
-
-            // Handle "Last, First" to "First Last" conversion if needed
-            const reversedName = normalizedJSONName.split(" ").reverse().join(" ");
-
-            return normalizedJSONName === normalizedInstructor || reversedName === normalizedInstructor;
-        });
-    }
-
-    // Initialize Bootstrap tooltips
+document.addEventListener("DOMContentLoaded", function () {
+    // Initialize Bootstrap tooltips with HTML enabled
     function initializeTooltips() {
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach(tooltipEl => new bootstrap.Tooltip(tooltipEl));
-
-        document.querySelectorAll('.instructor-name').forEach(instructorElement => {
-            instructorElement.addEventListener('mouseenter', function () {
-                const instructorName = this.getAttribute('data-instructor').trim();
-                const tooltipInstance = bootstrap.Tooltip.getInstance(this);
-
-                const instructorInfo = findInstructor(instructorName);
-
-                if (instructorInfo) {
-                    // Format salary as a readable number
-                    const basePayFormatted = instructorInfo["Base Pay"].replace(/\$/g, '');
-                    const grossPayFormatted = instructorInfo["Gross Pay"].replace(/\$/g, '');
-
-                    // Update tooltip content dynamically
-                    tooltipInstance.setContent({
-                        '.tooltip-inner': `
-                            <strong>${instructorInfo.Name}</strong><br>
-                            <strong>Title:</strong> ${instructorInfo.Title}<br>
-                            <strong>Department:</strong> ${instructorInfo.Department}<br>
-                            <strong>Campus:</strong> ${instructorInfo.Campus}<br>
-                            <strong>Base Pay:</strong> $${parseFloat(basePayFormatted).toLocaleString()}<br>
-                            <strong>Gross Pay:</strong> $${parseFloat(grossPayFormatted).toLocaleString()}<br>
-                            <strong>Hire Date:</strong> ${instructorInfo["Hire Date"]}
-                        `
-                    });
-                } else {
-                    tooltipInstance.setContent({ '.tooltip-inner': 'No salary data found' });
-                }
+        tooltipTriggerList.forEach(tooltipEl => {
+            new bootstrap.Tooltip(tooltipEl, {
+                html: true  // ✅ Enables rendering of HTML inside tooltips
             });
         });
     }
 
-    // Course search functionality
-    const searchForm = document.getElementById('searchForm');
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
+    async function fetchSalaryData(instructorName, tooltipElement) {
+        try {
+            // Convert "LAST, FIRST" to "First Last"
+            let nameParts = instructorName.split(", ");
+            let formattedName = nameParts.length === 2 ? `${nameParts[1]} ${nameParts[0]}` : instructorName;
 
-    searchForm.addEventListener('submit', function(e) {
+            console.log("🔍 Fetching salary for:", formattedName); // Debugging
+
+            const response = await fetch(`/api/salary?name=${encodeURIComponent(formattedName)}`);
+            const data = await response.json();
+            console.log("📡 API Response:", data); // Debugging
+
+            let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipElement);
+            if (!tooltipInstance) return;
+
+            // ✅ Format tooltip content with proper layout while using setContent method
+            if (data.error) {
+                tooltipInstance.setContent({ '.tooltip-inner': "No salary data found" });
+            } else {
+                tooltipInstance.setContent({
+                    '.tooltip-inner': `
+                        <div style="text-align: left; max-width: 280px;">
+                            <strong>${data.name}</strong><br><br>
+                            <strong>Title:</strong> ${data.title}<br>
+                            <strong>Department:</strong> ${data.department}<br>
+                            <strong>Campus:</strong> ${data.campus}<br>
+                            <strong>Base Pay:</strong> ${data.base_pay}<br>
+                            <strong>Gross Pay:</strong> ${data.gross_pay}<br>
+                            <strong>Hire Date:</strong> ${data.hire_date}
+                        </div>
+                    `
+                });
+            }
+
+            console.log("✅ Tooltip updated successfully"); // Debugging
+        } catch (error) {
+            console.error("❌ Error fetching salary data:", error);
+
+            let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipElement);
+            if (tooltipInstance) {
+                tooltipInstance.setContent({ '.tooltip-inner': "Error loading salary data" });
+            }
+        }
+    }
+
+    // ✅ Add single event listener for instructor hover (fixes duplicate event issue)
+    document.body.addEventListener("mouseover", function (event) {
+        if (event.target.classList.contains("instructor-name")) {
+            let instructorName = event.target.textContent.trim();
+            let tooltipElement = event.target;
+
+            fetchSalaryData(instructorName, tooltipElement);
+        }
+    });
+
+    // ✅ Ensure tooltips initialize correctly after dynamic content loads
+    initializeTooltips();
+
+    // ================================
+    // Course Search Functionality
+    // ================================
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('search');
+    const searchResults = document.getElementById('results');
+
+    searchForm.addEventListener('submit', function (e) {
         e.preventDefault();
         const searchTerm = searchInput.value.trim();
 
         if (searchTerm) {
             searchResults.innerHTML = '<div class="text-center">Searching...</div>';
 
-            fetch(`/api/courses?name=${encodeURIComponent(searchTerm)}`)
+            fetch(`/api/courses?search=${encodeURIComponent(searchTerm)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success' && data.data.length > 0) {
@@ -98,18 +94,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <p><strong>Subject:</strong> ${course.subject} - ${course.subjectDescription}</p>
-                                            <p><strong>Credits:</strong> ${course.credits} (${course.creditsDescription})</p>
+                                            <p><strong>Credits:</strong> ${course.credits}</p>
                                             <p><strong>School:</strong> ${course.school}</p>
                                         </div>
                                         <div class="col-md-6">
                                             <p><strong>Campus Locations:</strong> ${course.campusLocations.join(', ')}</p>
                                             <p><strong>Prerequisites:</strong> ${course.prerequisites || 'None'}</p>
                                         </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <h5>Core Requirements:</h5>
-                                        <p>${formatCoreRequirements(course.coreRequirements)}</p>
                                     </div>
 
                                     <div class="sections">
@@ -127,17 +118,23 @@ document.addEventListener("DOMContentLoaded", async function () {
                                                         <h6>Section ${section.number} (Index: ${section.index})</h6>
                                                         <p><strong>Instructors:</strong> 
                                                             ${section.instructors.map(instructor => 
-                                                                `<span class="instructor-name" data-instructor="${instructor.trim()}" 
-                                                                data-bs-toggle="tooltip" data-bs-placement="top" 
+                                                                `<span class="instructor-name" data-bs-toggle="tooltip" data-bs-placement="top" 
                                                                 title="Loading salary data...">
-                                                                ${instructor}</span>`
+                                                                ${instructor.trim()}</span>`
                                                             ).join(', ') || 'TBA'}
                                                         </p>
                                                         <p><strong>Status:</strong> ${section.status}</p>
-                                                        ${section.comments ? `<p><strong>Comments:</strong> ${section.comments}</p>` : ''}
                                                         <div class="meeting-times">
                                                             <strong>Meeting Times:</strong><br>
-                                                            ${formatMeetingTimes(section.meeting_times)}
+                                                            ${section.meeting_times.map(time => `
+                                                                <p>
+                                                                    ${time.day || 'TBA'} 
+                                                                    ${time.start_time.formatted} - ${time.end_time.formatted}<br>
+                                                                    Location: ${time.building} ${time.room}<br>
+                                                                    Campus: ${time.campus}<br>
+                                                                    Mode: ${time.mode}
+                                                                </p>
+                                                            `).join('')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -161,7 +158,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
-    // API health status checker
+    // ================================
+    // API Health Status Checker
+    // ================================
     function updateStatus() {
         fetch('/api/health')
             .then(response => response.json())
@@ -190,7 +189,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             });
     }
 
-    // Update API status every 30 seconds
     updateStatus();
     setInterval(updateStatus, 30000);
 });

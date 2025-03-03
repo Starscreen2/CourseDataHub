@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="/static/script.js"></script>
 </head>
 <body>
     <!-- Rutgers Navigation Bar -->
@@ -68,8 +69,7 @@
             try {
                 const response = await fetch('/static/rutgers_salaries.json');
                 const salaryJson = await response.json();
-                // Check if data property exists, otherwise return the json directly
-                return salaryJson.data || salaryJson;
+                return salaryJson.data;
             } catch (error) {
                 console.error("Failed to load salary data:", error);
                 return [];
@@ -95,7 +95,6 @@
             try {
                 const response = await fetch(`/api/courses?${params}`);
                 const data = await response.json();
-                const salaryData = await loadSalaries();
 
                 loadingSpinner.style.display = 'none';
 
@@ -118,13 +117,6 @@
                                     </div>
                                 </div>
 
-                                <div class="mb-3">
-                                    <h5>Core Requirements:</h5>
-                                    <p>${course.coreRequirements && course.coreRequirements.length > 0 ? 
-                                        course.coreRequirements.map(req => `${req.code}: ${req.description}`).join('<br>') : 
-                                        'None'}</p>
-                                </div>
-
                                 <div class="sections">
                                     <button class="btn btn-primary mb-3" type="button" 
                                             data-bs-toggle="collapse" 
@@ -139,20 +131,13 @@
                                                 <div class="card-body">
                                                     <h6>Section ${section.number} (Index: ${section.index})</h6>
                                                     <p><strong>Instructors:</strong> 
-                                                        ${section.instructors.map(instructor => {
-                                                            const instructorInfo = salaryData.find(person => 
-                                                                person.Name.toLowerCase().trim() === instructor.toLowerCase().trim()
-                                                            );
-                                                            return `<span class="instructor-name" data-bs-toggle="tooltip" title="${instructorInfo ? `
-                                                                <strong>${instructorInfo.Name}</strong><br>
-                                                                Title: ${instructorInfo.Title}<br>
-                                                                Department: ${instructorInfo.Department}<br>
-                                                                Campus: ${instructorInfo.Campus}<br>
-                                                                Base Pay: ${instructorInfo["Base Pay"]}<br>
-                                                                Gross Pay: ${instructorInfo["Gross Pay"]}
-                                                            ` : 'No salary data found'}">
-                                                            ${instructor}</span>`;
-                                                        }).join(', ') || 'TBA'}
+                                                        ${section.instructors.map(instructor => `
+                                                            <span class="instructor-name" 
+                                                                  data-bs-toggle="tooltip" 
+                                                                  data-bs-placement="top" 
+                                                                  title="Loading salary data...">
+                                                                  ${instructor}
+                                                            </span>`).join(', ') || 'TBA'}
                                                     </p>
                                                     <p><strong>Status:</strong> ${section.status}</p>
                                                     <div class="meeting-times">

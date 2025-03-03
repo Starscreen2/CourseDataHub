@@ -10,13 +10,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <!-- Add Rutgers Navigation Bar -->
+    <!-- Rutgers Navigation Bar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand text-outline" href="/">Rutgers Course Search</a>
             <div class="d-flex align-items-center">
                 <a href="https://discord.gg/8GXTRWWYqb" class="discord-link" target="_blank">
-                    <i class="bi bi-discord me-2"></i>Join Discord Sniper
+                    <i class="bi bi-discord me-2"></i>Discord Sniper
                 </a>
             </div>
         </div>
@@ -52,7 +52,7 @@
             </form>
         </div>
 
-        <!-- Add loading spinner -->
+        <!-- Loading spinner -->
         <div id="loadingSpinner" class="loading-spinner">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -64,20 +64,15 @@
     </div>
 
     <script>
-        function copyToClipboard(text, button) {
-            navigator.clipboard.writeText(text).then(() => {
-                // Change icon to check mark
-                button.innerHTML = '<i class="bi bi-check"></i>';
-                button.classList.add('copy-success');
-
-                // Reset after 2 seconds
-                setTimeout(() => {
-                    button.innerHTML = '<i class="bi bi-clipboard"></i>';
-                    button.classList.remove('copy-success');
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-            });
+        async function loadSalaries() {
+            try {
+                const response = await fetch('/static/rutgers_salaries.json');
+                const salaryJson = await response.json();
+                return salaryJson.data;
+            } catch (error) {
+                console.error("Failed to load salary data:", error);
+                return [];
+            }
         }
 
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
@@ -86,7 +81,6 @@
             const loadingSpinner = document.getElementById('loadingSpinner');
             const resultsDiv = document.getElementById('results');
 
-            // Show loading spinner, hide previous results
             loadingSpinner.style.display = 'block';
             resultsDiv.innerHTML = '';
 
@@ -100,8 +94,8 @@
             try {
                 const response = await fetch(`/api/courses?${params}`);
                 const data = await response.json();
+                const salaryData = await loadSalaries();
 
-                // Hide loading spinner
                 loadingSpinner.style.display = 'none';
 
                 if (data.status === 'success' && data.data.length > 0) {
@@ -142,14 +136,24 @@
                                         ${course.sections.map(section => `
                                             <div class="section-item card mb-3">
                                                 <div class="card-body">
-                                                    <h6>Section ${section.number} (Index: ${section.index} 
-                                                        <button class="copy-button" onclick="copyToClipboard('${section.index}', this)" title="Copy Index">
-                                                            <i class="bi bi-clipboard"></i>
-                                                        </button>)
-                                                    </h6>
-                                                    <p><strong>Instructors:</strong> ${section.instructors.join(', ') || 'TBA'}</p>
-                                                    <p><strong>Status:</strong> <span class="status-${section.status === 'OPEN' ? 'open' : 'closed'}">${section.status}</span></p>
-                                                    ${section.comments ? `<p><strong>Comments:</strong> ${section.comments}</p>` : ''}
+                                                    <h6>Section ${section.number} (Index: ${section.index})</h6>
+                                                    <p><strong>Instructors:</strong> 
+                                                        ${section.instructors.map(instructor => {
+                                                            const instructorInfo = salaryData.find(person => 
+                                                                person.Name.toLowerCase().trim() === instructor.toLowerCase().trim()
+                                                            );
+                                                            return `<span class="instructor-name" data-bs-toggle="tooltip" title="${instructorInfo ? `
+                                                                <strong>${instructorInfo.Name}</strong><br>
+                                                                Title: ${instructorInfo.Title}<br>
+                                                                Department: ${instructorInfo.Department}<br>
+                                                                Campus: ${instructorInfo.Campus}<br>
+                                                                Base Pay: ${instructorInfo["Base Pay"]}<br>
+                                                                Gross Pay: ${instructorInfo["Gross Pay"]}
+                                                            ` : 'No salary data found'}">
+                                                            ${instructor}</span>`;
+                                                        }).join(', ') || 'TBA'}
+                                                    </p>
+                                                    <p><strong>Status:</strong> ${section.status}</p>
                                                     <div class="meeting-times">
                                                         <strong>Meeting Times:</strong><br>
                                                         ${section.meeting_times.map(time => `
@@ -170,11 +174,13 @@
                             </div>
                         </div>
                     `).join('');
+
+                    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                    tooltipTriggerList.forEach(tooltipEl => new bootstrap.Tooltip(tooltipEl));
                 } else {
                     resultsDiv.innerHTML = '<div class="alert alert-info">No courses found</div>';
                 }
             } catch (error) {
-                // Hide loading spinner and show error
                 loadingSpinner.style.display = 'none';
                 console.error('Error searching courses:', error);
                 resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching courses</div>';

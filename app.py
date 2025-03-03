@@ -6,6 +6,8 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from course_fetcher import CourseFetcher
 import logging
+import json
+from rapidfuzz import process
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -95,6 +97,71 @@ def ratelimit_handler(e):
         "retry_after": retry_seconds,
         "wait_message": f"Please wait {retry_seconds} seconds before trying again."
     }), 429
+
+
+
+# Load salary data from JSON file at startup
+SALARY_FILE_PATH = "rutgers_salaries.json"
+if os.path.exists(SALARY_FILE_PATH):
+    with open(SALARY_FILE_PATH, "r", encoding="utf-8") as file:
+        salary_data = json.load(file)
+else:
+    salary_data = []
+
+
+
+
+
+from rapidfuzz import process
+
+@app.route('/api/salary', methods=['GET'])
+@limiter.limit("50 per minute")
+def get_salary():
+    instructor_name = request.args.get('name', '').strip()
+
+    if not instructor_name:
+        return jsonify({"error": "Missing instructor name"}), 400
+
+    # Normalize function (case insensitive, removes extra spaces)
+    def normalize_name(name):
+        return name.lower().strip().replace(",", "")
+
+    # Convert "Last, First" to "First Last"
+    def convert_last_first(name):
+        parts = name.split(", ")
+        return f"{parts[1]} {parts[0]}" if len(parts) == 2 else name
+
+    # Generate normalized names for comparison
+    normalized_input = normalize_name(instructor_name)
+    converted_input = normalize_name(convert_last_first(instructor_name))
+
+    # Try exact matching (case insensitive)
+    for person in salary_data:
+        normalized_salary_name = normalize_name(person["Name"])
+
+        if normalized_salary_name == normalized_input or normalized_salary_name == converted_input:
+            return jsonify({
+                "name": person["Name"],
+                "title": person["Title"],
+                "department": person["Department"],
+                "campus": person["Campus"],
+                "base_pay": person["Base Pay"],
+                "gross_pay": person["Gross Pay"],
+                "hire_date": person["Hire Date"]
+            })
+
+    # If no match, return closest matches (case insensitive search)
+    all_names = [person["Name"].lower() for person in salary_data]
+    closest_matches = process.extract(normalized_input, all_names, limit=5)
+
+    return jsonify({
+        "error": "No salary data found",
+        "closest_matches": closest_matches
+    }), 404
+
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

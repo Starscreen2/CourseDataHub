@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", async function () {
     const campusMap = {
         "1": "College Ave",
         "2": "Busch",
@@ -6,22 +6,71 @@ document.addEventListener('DOMContentLoaded', function() {
         "4": "Cook/Doug"
     };
 
-    // Helper function to format meeting times
-    function formatMeetingTimes(meetingTimes) {
-        return meetingTimes.map(meeting => `
-            ${meeting.day}: ${meeting.start_time.formatted} - ${meeting.end_time.formatted}
-            <br>Location: ${meeting.building} ${meeting.room}
-            <br>Campus: ${meeting.campus}
-            <br>Mode: ${meeting.mode}
-        `).join('<br><br>');
+    let salaryData = [];
+
+    // Fetch Rutgers salaries JSON
+    try {
+        const response = await fetch('/static/rutgers_salaries.json'); // Adjust path if needed
+        const salaryJson = await response.json();
+        salaryData = salaryJson.data; // Extract the array from JSON
+    } catch (error) {
+        console.error("Failed to load salary data:", error);
     }
 
-    // Helper function to format core requirements
-    function formatCoreRequirements(requirements) {
-        if (!requirements || requirements.length === 0) return 'None';
-        return requirements.map(req => 
-            `${req.code}: ${req.description}`
-        ).join('<br>');
+    // Function to clean and standardize names for matching
+    function normalizeName(name) {
+        if (!name) return "";
+        return name.toLowerCase().trim().replace(/\s+/g, " "); // Trim and normalize spaces
+    }
+
+    // Function to check if an instructor is in the salary dataset
+    function findInstructor(instructorName) {
+        const normalizedInstructor = normalizeName(instructorName);
+
+        return salaryData.find(person => {
+            const normalizedJSONName = normalizeName(person.Name);
+
+            // Handle "Last, First" to "First Last" conversion if needed
+            const reversedName = normalizedJSONName.split(" ").reverse().join(" ");
+
+            return normalizedJSONName === normalizedInstructor || reversedName === normalizedInstructor;
+        });
+    }
+
+    // Initialize Bootstrap tooltips
+    function initializeTooltips() {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach(tooltipEl => new bootstrap.Tooltip(tooltipEl));
+
+        document.querySelectorAll('.instructor-name').forEach(instructorElement => {
+            instructorElement.addEventListener('mouseenter', function () {
+                const instructorName = this.getAttribute('data-instructor').trim();
+                const tooltipInstance = bootstrap.Tooltip.getInstance(this);
+
+                const instructorInfo = findInstructor(instructorName);
+
+                if (instructorInfo) {
+                    // Format salary as a readable number
+                    const basePayFormatted = instructorInfo["Base Pay"].replace(/\$/g, '');
+                    const grossPayFormatted = instructorInfo["Gross Pay"].replace(/\$/g, '');
+
+                    // Update tooltip content dynamically
+                    tooltipInstance.setContent({
+                        '.tooltip-inner': `
+                            <strong>${instructorInfo.Name}</strong><br>
+                            <strong>Title:</strong> ${instructorInfo.Title}<br>
+                            <strong>Department:</strong> ${instructorInfo.Department}<br>
+                            <strong>Campus:</strong> ${instructorInfo.Campus}<br>
+                            <strong>Base Pay:</strong> $${parseFloat(basePayFormatted).toLocaleString()}<br>
+                            <strong>Gross Pay:</strong> $${parseFloat(grossPayFormatted).toLocaleString()}<br>
+                            <strong>Hire Date:</strong> ${instructorInfo["Hire Date"]}
+                        `
+                    });
+                } else {
+                    tooltipInstance.setContent({ '.tooltip-inner': 'No salary data found' });
+                }
+            });
+        });
     }
 
     // Course search functionality
@@ -76,7 +125,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="section-item card mb-3">
                                                     <div class="card-body">
                                                         <h6>Section ${section.number} (Index: ${section.index})</h6>
-                                                        <p><strong>Instructors:</strong> ${section.instructors.join(', ') || 'TBA'}</p>
+                                                        <p><strong>Instructors:</strong> 
+                                                            ${section.instructors.map(instructor => 
+                                                                `<span class="instructor-name" data-instructor="${instructor.trim()}" 
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" 
+                                                                title="Loading salary data...">
+                                                                ${instructor}</span>`
+                                                            ).join(', ') || 'TBA'}
+                                                        </p>
                                                         <p><strong>Status:</strong> ${section.status}</p>
                                                         ${section.comments ? `<p><strong>Comments:</strong> ${section.comments}</p>` : ''}
                                                         <div class="meeting-times">
@@ -93,6 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         `).join('');
 
                         searchResults.innerHTML = resultsHtml;
+                        initializeTooltips();
                     } else {
                         searchResults.innerHTML = '<div class="alert alert-info">No courses found</div>';
                     }
@@ -104,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Check API health status
+    // API health status checker
     function updateStatus() {
         fetch('/api/health')
             .then(response => response.json())
@@ -133,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Update status every 30 seconds
+    // Update API status every 30 seconds
     updateStatus();
     setInterval(updateStatus, 30000);
 });

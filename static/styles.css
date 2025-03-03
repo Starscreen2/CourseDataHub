@@ -138,3 +138,16 @@ body {
     background-color: #3182ce;
     border-color: #3182ce;
 }
+
+.tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    max-width: 250px;
+    z-index: 1000;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}

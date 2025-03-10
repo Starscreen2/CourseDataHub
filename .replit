@@ -8,7 +8,6 @@ deploymentTarget = "cloudrun"
 run = ["sh", "-c", "python main.py"]
 
 [workflows]
-runButton = "Flask Server"
 
 [[workflows.workflow]]
 name = "Project"

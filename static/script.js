@@ -31,6 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 tooltipInstance.setContent({
                     '.tooltip-inner': `
                         <div style="text-align: left; max-width: 280px;">
+                            <em>Special thanks to Github: ibrahimmudassar for the data</em><br><br>
+                            <em>As of December, 2021</em><br><br>
                             <strong>${data.name}</strong><br><br>
                             <strong>Title:</strong> ${data.title}<br>
                             <strong>Department:</strong> ${data.department}<br>

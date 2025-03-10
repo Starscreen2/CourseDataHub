@@ -130,20 +130,17 @@ class RoomFetcher:
                         
                         day = meeting_time.get('day')
                         
-                        # Extract instructors properly from the raw section data
+                        # Extract instructors properly
                         instructors = []
-                        instructor_text = 'TBA'
-                        
-                        # First try to get instructor information from the raw section data
                         if 'instructors' in section and section['instructors']:
-                            instructors = [{'name': inst.get('name', 'TBA')} for inst in section['instructors']]
+                            instructors = [inst for inst in section.get('instructors', [])]
+                        elif 'instructorsText' in section and section['instructorsText']:
+                            # Handle case where instructorsText is provided but not individual instructors
                             instructor_text = section.get('instructorsText', '')
-                            
-                        # If we still don't have instructor data, try to parse from instructorsText
-                        elif 'instructorsText' in section and section['instructorsText'] and section['instructorsText'] != 'TBA':
-                            instructor_text = section.get('instructorsText', '')
-                            instructor_names = [name.strip() for name in instructor_text.split(',')]
-                            instructors = [{"name": name} for name in instructor_names if name]
+                            if instructor_text and instructor_text.strip() != '':
+                                # Split by comma if multiple instructors
+                                instructor_names = [name.strip() for name in instructor_text.split(',')]
+                                instructors = [{"name": name} for name in instructor_names if name]
                         
                         # Create class entry
                         class_entry = {
@@ -151,7 +148,7 @@ class RoomFetcher:
                             "course_code": course.get('courseString', 'Unknown'),
                             "section": section.get('number', 'Unknown'),
                             "instructors": instructors,
-                            "instructor_text": instructor_text if instructor_text else 'TBA',
+                            "instructor_text": section.get('instructorsText', 'TBA'),
                             "start_time": meeting_time.get('start_time', {}).get('formatted', 'TBA'),
                             "end_time": meeting_time.get('end_time', {}).get('formatted', 'TBA'),
                             "meeting_mode": meeting_time.get('mode', 'Unknown'),

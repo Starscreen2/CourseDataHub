@@ -295,35 +295,17 @@
                         classesByDay[day] = schedule.daily_schedule[day].classes || [];
                     });
                     
-                    // Create a collapsible section for each day
-                    days.forEach((day, dayIndex) => {
+                    // Create a section for each day
+                    days.forEach(day => {
                         const classes = classesByDay[day];
-                        const dayId = `day-${dayIndex}`;
-                        const hasClasses = classes.length > 0;
                         
-                        // Start with a collapsible card for each day
                         weeklyHTML += `
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <button class="btn btn-link w-100 text-start text-decoration-none" type="button" 
-                                            data-bs-toggle="collapse" data-bs-target="#${dayId}" 
-                                            aria-expanded="${hasClasses ? 'true' : 'false'}" aria-controls="${dayId}">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <h5 class="mb-0">${day}</h5>
-                                            <div>
-                                                <span class="badge ${hasClasses ? 'bg-danger' : 'bg-success'} me-2">
-                                                    ${hasClasses ? 'Classes Scheduled' : 'Available All Day'}
-                                                </span>
-                                                <i class="bi bi-chevron-down"></i>
-                                            </div>
-                                        </div>
-                                    </button>
-                                </div>
-                                <div id="${dayId}" class="collapse ${hasClasses ? 'show' : ''}">
-                                    <div class="card-body">
+                            <div class="day-schedule mb-4">
+                                <h5 class="day-header">${day}</h5>
+                                <hr>
                         `;
                         
-                        if (!hasClasses) {
+                        if (classes.length === 0) {
                             weeklyHTML += `
                                 <p class="text-muted">No classes scheduled</p>
                             `;
@@ -393,8 +375,6 @@
                         }
                         
                         weeklyHTML += `
-                                    </div>
-                                </div>
                             </div>
                         `;
                     });

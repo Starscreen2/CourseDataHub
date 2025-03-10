@@ -146,26 +146,14 @@ class RoomFetcher:
                             instructors = [{"name": name} for name in instructor_names if name]
                         
                         # Create class entry
-                        # Handle start and end times properly (they might be strings or dicts)
-                        start_time = meeting_time.get('start_time', 'TBA')
-                        end_time = meeting_time.get('end_time', 'TBA')
-                        
-                        # Check if start_time is a dict with 'formatted' key
-                        if isinstance(start_time, dict) and 'formatted' in start_time:
-                            start_time = start_time.get('formatted', 'TBA')
-                        
-                        # Check if end_time is a dict with 'formatted' key
-                        if isinstance(end_time, dict) and 'formatted' in end_time:
-                            end_time = end_time.get('formatted', 'TBA')
-                        
                         class_entry = {
                             "course_name": course.get('title', 'Unknown'),
                             "course_code": course.get('courseString', 'Unknown'),
                             "section": section.get('number', 'Unknown'),
                             "instructors": instructors,
                             "instructor_text": instructor_text if instructor_text else 'TBA',
-                            "start_time": start_time,
-                            "end_time": end_time,
+                            "start_time": meeting_time.get('start_time', {}).get('formatted', 'TBA'),
+                            "end_time": meeting_time.get('end_time', {}).get('formatted', 'TBA'),
                             "meeting_mode": meeting_time.get('mode', 'Unknown'),
                         }
                         

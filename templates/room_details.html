@@ -57,6 +57,40 @@
             border-radius: 4px;
             border-left: 4px solid #4299E1;
         }
+        
+        /* Instructor name and tooltip styles */
+        .instructor-name {
+            position: relative;
+            cursor: pointer;
+            border-bottom: 1px dotted #333;
+        }
+        
+        .instructor-name[data-salary]:hover::after {
+            content: attr(data-salary);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 100;
+            font-size: 0.85rem;
+        }
+        
+        .instructor-name[data-salary]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent #333 transparent;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -152,11 +186,18 @@
             <!-- Weekly Schedule Section -->
             <div class="card">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0">Weekly Schedule</h5>
+                    <button class="btn btn-link w-100 text-start text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#weeklyScheduleCollapse" aria-expanded="true" aria-controls="weeklyScheduleCollapse">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Weekly Schedule</h5>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                    </button>
                 </div>
-                <div class="card-body">
-                    <div id="weeklySchedule">
-                        <!-- Will be filled by JS -->
+                <div id="weeklyScheduleCollapse" class="collapse show">
+                    <div class="card-body">
+                        <div id="weeklySchedule">
+                            <!-- Will be filled by JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -164,6 +205,41 @@
     </div>
 
     <script>
+        // Function to fetch and display salary data
+        async function fetchSalaryData(instructorName, element) {
+            if (!instructorName || instructorName === 'TBA') return;
+            
+            try {
+                const response = await fetch(`/api/salary?name=${encodeURIComponent(instructorName)}`);
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data) {
+                    const salary = data.data;
+                    let salaryText = '';
+                    
+                    if (salary.name && salary.salary) {
+                        // Format salary with commas
+                        const formattedSalary = parseInt(salary.salary).toLocaleString('en-US', { 
+                            style: 'currency', 
+                            currency: 'USD',
+                            maximumFractionDigits: 0
+                        });
+                        
+                        salaryText = `${salary.name}: ${formattedSalary}`;
+                        if (salary.title) {
+                            salaryText += ` - ${salary.title}`;
+                        }
+                        
+                        // Add data attribute for tooltip
+                        element.setAttribute('data-salary', salaryText);
+                        element.classList.add('has-salary-data');
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching salary for ${instructorName}:`, error);
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', async () => {
             const loadingSpinner = document.getElementById('loadingSpinner');
             const scheduleContent = document.getElementById('scheduleContent');
@@ -235,13 +311,58 @@
                             `;
                         } else {
                             classes.forEach(classItem => {
+                                let instructorHtml = '';
+                                
+                                // Handle instructor display with salary hover
+                                if (classItem.instructors && classItem.instructors.length > 0) {
+                                    instructorHtml = `<p class="mb-1"><strong>Instructor:</strong> `;
+                                    
+                                    classItem.instructors.forEach((instructor, index) => {
+                                        if (instructor.name && instructor.name !== 'TBA') {
+                                            const instructorId = `instructor-${day}-${index}-${Math.random().toString(36).substring(2, 8)}`;
+                                            instructorHtml += `
+                                                <span class="instructor-name" id="${instructorId}">
+                                                    ${instructor.name}${index < classItem.instructors.length - 1 ? ', ' : ''}
+                                                </span>
+                                            `;
+                                            // Will add salary data fetch using setTimeout after rendering
+                                            setTimeout(() => {
+                                                const element = document.getElementById(instructorId);
+                                                if (element) {
+                                                    fetchSalaryData(instructor.name, element);
+                                                }
+                                            }, 100);
+                                        } else {
+                                            instructorHtml += `${instructor.name || 'TBA'}${index < classItem.instructors.length - 1 ? ', ' : ''}`;
+                                        }
+                                    });
+                                    
+                                    instructorHtml += `</p>`;
+                                } else if (classItem.instructor_text && classItem.instructor_text !== 'TBA') {
+                                    const instructorId = `instructor-${day}-text-${Math.random().toString(36).substring(2, 8)}`;
+                                    instructorHtml = `
+                                        <p class="mb-1"><strong>Instructor:</strong> 
+                                        <span class="instructor-name" id="${instructorId}">${classItem.instructor_text}</span>
+                                        </p>
+                                    `;
+                                    // Will add salary data fetch using setTimeout after rendering
+                                    setTimeout(() => {
+                                        const element = document.getElementById(instructorId);
+                                        if (element) {
+                                            fetchSalaryData(classItem.instructor_text, element);
+                                        }
+                                    }, 100);
+                                } else {
+                                    instructorHtml = `<p class="mb-1"><strong>Instructor:</strong> TBA</p>`;
+                                }
+                                
                                 weeklyHTML += `
                                     <div class="class-item">
                                         <div class="row">
                                             <div class="col-md-8">
                                                 <h6>${classItem.course_code} - ${classItem.course_name}</h6>
                                                 <p class="mb-1"><strong>Section:</strong> ${classItem.section}</p>
-                                                <p class="mb-1"><strong>Instructor:</strong> ${classItem.instructor}</p>
+                                                ${instructorHtml}
                                             </div>
                                             <div class="col-md-4 text-md-end">
                                                 <p class="mb-1"><strong>Time:</strong> ${classItem.start_time} - ${classItem.end_time}</p>

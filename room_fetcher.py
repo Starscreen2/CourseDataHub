@@ -130,12 +130,25 @@ class RoomFetcher:
                         
                         day = meeting_time.get('day')
                         
+                        # Extract instructors properly
+                        instructors = []
+                        if 'instructors' in section and section['instructors']:
+                            instructors = [inst for inst in section.get('instructors', [])]
+                        elif 'instructorsText' in section and section['instructorsText']:
+                            # Handle case where instructorsText is provided but not individual instructors
+                            instructor_text = section.get('instructorsText', '')
+                            if instructor_text and instructor_text.strip() != '':
+                                # Split by comma if multiple instructors
+                                instructor_names = [name.strip() for name in instructor_text.split(',')]
+                                instructors = [{"name": name} for name in instructor_names if name]
+                        
                         # Create class entry
                         class_entry = {
                             "course_name": course.get('title', 'Unknown'),
                             "course_code": course.get('courseString', 'Unknown'),
                             "section": section.get('number', 'Unknown'),
-                            "instructor": section.get('instructorsText', 'TBA'),
+                            "instructors": instructors,
+                            "instructor_text": section.get('instructorsText', 'TBA'),
                             "start_time": meeting_time.get('start_time', {}).get('formatted', 'TBA'),
                             "end_time": meeting_time.get('end_time', {}).get('formatted', 'TBA'),
                             "meeting_mode": meeting_time.get('mode', 'Unknown'),

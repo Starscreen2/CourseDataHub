@@ -132,15 +132,32 @@ class RoomFetcher:
                         
                         # Extract instructors properly
                         instructors = []
-                        if 'instructors' in section and section['instructors']:
-                            instructors = [inst for inst in section.get('instructors', [])]
-                        elif 'instructorsText' in section and section['instructorsText']:
-                            # Handle case where instructorsText is provided but not individual instructors
+                        
+                        # First try to get from instructors field which is the preferred source
+                        if section.get('instructors'):
+                            # Handle different data structures for instructors
+                            instructor_list = section.get('instructors', [])
+                            for inst in instructor_list:
+                                if isinstance(inst, dict) and inst.get('name'):
+                                    instructors.append({"name": inst.get('name')})
+                                elif isinstance(inst, str):
+                                    instructors.append({"name": inst})
+                        
+                        # If no instructors found, try instructorsText field
+                        elif section.get('instructorsText'):
                             instructor_text = section.get('instructorsText', '')
                             if instructor_text and instructor_text.strip() != '':
-                                # Split by comma if multiple instructors
-                                instructor_names = [name.strip() for name in instructor_text.split(',')]
-                                instructors = [{"name": name} for name in instructor_names if name]
+                                if ',' in instructor_text:
+                                    # Split by comma if multiple instructors 
+                                    instructor_names = [name.strip() for name in instructor_text.split(',')]
+                                    instructors = [{"name": name} for name in instructor_names if name]
+                                else:
+                                    # Single instructor
+                                    instructors = [{"name": instructor_text.strip()}]
+                        
+                        # As a fallback (should rarely happen)
+                        if not instructors:
+                            instructors = [{"name": "TBA"}]
                         
                         # Create class entry
                         class_entry = {

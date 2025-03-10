@@ -91,6 +91,21 @@
             border-color: transparent transparent #333 transparent;
             z-index: 100;
         }
+        
+        /* Day header styles */
+        .day-header {
+            font-weight: 600;
+            color: #1F2937;
+        }
+        
+        .day-schedule button.btn-link:hover {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .day-schedule button.btn-link:focus {
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -299,10 +314,19 @@
                     days.forEach(day => {
                         const classes = classesByDay[day];
                         
+                        const dayId = `day-${day.toLowerCase()}`;
                         weeklyHTML += `
                             <div class="day-schedule mb-4">
-                                <h5 class="day-header">${day}</h5>
-                                <hr>
+                                <button class="btn btn-link w-100 text-start text-decoration-none p-0" type="button" 
+                                     data-bs-toggle="collapse" data-bs-target="#${dayId}" 
+                                     aria-expanded="true" aria-controls="${dayId}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="day-header mb-0">${day}</h5>
+                                        <i class="bi bi-chevron-down"></i>
+                                    </div>
+                                </button>
+                                <hr class="mt-2 mb-3">
+                                <div id="${dayId}" class="collapse show">
                         `;
                         
                         if (classes.length === 0) {
@@ -375,6 +399,7 @@
                         }
                         
                         weeklyHTML += `
+                                </div>
                             </div>
                         `;
                     });

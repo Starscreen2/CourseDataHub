@@ -39,7 +39,7 @@
     </nav>
 
     <div class="container">
-        <h2 class="mb-4">Course Search</h2>
+        <h2 class="mb-4">Search</h2>
 
         <div class="search-params mt-4">
             <p class="mb-1">
@@ -58,6 +58,16 @@
                 <a href="/" class="btn btn-sm btn-outline-secondary float-end">Change</a>
             </p>
         </div>
+
+        <!-- Main tabs -->
+        <ul class="nav nav-tabs mb-4">
+            <li class="nav-item">
+                <a class="nav-link active" href="/search?year={{ year }}&term={{ term }}&campus={{ campus }}">Course Search</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/room-search?year={{ year }}&term={{ term }}&campus={{ campus }}">Room Search</a>
+            </li>
+        </ul>
 
         <div class="search-form">
             <form id="searchForm">

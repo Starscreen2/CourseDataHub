@@ -40,13 +40,13 @@
 
     <div class="container">
         <h2 class="mb-4">Select Parameters</h2>
-        <form action="/search" method="GET">
+        <form id="paramForm">
             <div class="form-group mb-3">
                 <label for="year">Year:</label>
                 <select class="form-control" id="year" name="year" required>
                     <option value="">Select a Year</option>
                     <option value="2024">2024</option>
-                    <option value="2025">2025</option>
+                    <option value="2025" selected>2025</option>
                     <option value="2026">2026</option>
                 </select>
             </div>
@@ -55,7 +55,7 @@
                 <select class="form-control" id="term" name="term" required>
                     <option value="">Select a Term</option>
                     <option value="0">Winter</option>
-                    <option value="1">Spring</option>
+                    <option value="1" selected>Spring</option>
                     <option value="7">Summer</option>
                     <option value="9">Fall</option>
                 </select>
@@ -64,15 +64,51 @@
                 <label for="campus">Campus:</label>
                 <select class="form-control" id="campus" name="campus" required>
                     <option value="">Select a Campus</option>
-                    <option value="NB">New Brunswick</option>
+                    <option value="NB" selected>New Brunswick</option>
                     <option value="NK">Newark</option>
                     <option value="CM">Camden</option>
                 </select>
             </div>
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">Continue to Course Search</button>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <button type="button" id="courseSearchBtn" class="btn btn-primary w-100">
+                        <i class="bi bi-book"></i> Continue to Course Search
+                    </button>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <button type="button" id="roomSearchBtn" class="btn btn-primary w-100">
+                        <i class="bi bi-building"></i> Continue to Room Search
+                    </button>
+                </div>
             </div>
         </form>
+        
+        <script>
+            document.getElementById('courseSearchBtn').addEventListener('click', function() {
+                const year = document.getElementById('year').value;
+                const term = document.getElementById('term').value;
+                const campus = document.getElementById('campus').value;
+                
+                if (year && term && campus) {
+                    window.location.href = `/search?year=${year}&term=${term}&campus=${campus}`;
+                } else {
+                    alert('Please select all parameters');
+                }
+            });
+            
+            document.getElementById('roomSearchBtn').addEventListener('click', function() {
+                const year = document.getElementById('year').value;
+                const term = document.getElementById('term').value;
+                const campus = document.getElementById('campus').value;
+                
+                if (year && term && campus) {
+                    window.location.href = `/room-search?year=${year}&term=${term}&campus=${campus}`;
+                } else {
+                    alert('Please select all parameters');
+                }
+            });
+        </script>
     </div>
 
     <!-- Footer -->

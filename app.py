@@ -5,6 +5,7 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from course_fetcher import CourseFetcher
+from room_fetcher import RoomFetcher  # Import the new RoomFetcher class
 from salary_api import SalaryData  # Import SalaryData class for salaries
 import logging
 
@@ -36,6 +37,9 @@ cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
 
 # Initialize course fetcher
 course_fetcher = CourseFetcher()
+
+# Initialize room fetcher with course fetcher
+room_fetcher = RoomFetcher(course_fetcher)
 
 # Initialize scheduler
 scheduler = BackgroundScheduler()
@@ -128,6 +132,87 @@ def get_salary():
     print("⚠️ No salary data found!")
     return jsonify({"error": "No salary data found"}), 404
 
+@app.route('/room-search')
+def room_search_page():
+    """Render the room search page"""
+    year = request.args.get('year', '2025')
+    term = request.args.get('term', '1')
+    campus = request.args.get('campus', 'NB')
+    return render_template('room_search.html', year=year, term=term, campus=campus)
+
+@app.route('/room-details')
+def room_details_page():
+    """Render the room details page with schedule"""
+    year = request.args.get('year', '2025')
+    term = request.args.get('term', '1')
+    campus = request.args.get('campus', 'NB')
+    building = request.args.get('building', '')
+    room = request.args.get('room', '')
+    
+    if not building or not room:
+        return render_template('room_search.html', year=year, term=term, campus=campus, 
+                              error="Building and room must be specified")
+    
+    return render_template('room_details.html', year=year, term=term, campus=campus,
+                          building=building, room=room)
+
+@app.route('/api/rooms')
+@limiter.limit("50 per minute")
+def get_rooms():
+    """API endpoint to get rooms matching a query"""
+    try:
+        year = request.args.get('year', '2025')
+        term = request.args.get('term', '1')
+        campus = request.args.get('campus', 'NB')
+        search = request.args.get('search', '')
+        
+        rooms = room_fetcher.search_rooms(search, year=year, term=term, campus=campus)
+        
+        return jsonify({
+            "status": "success",
+            "data": rooms,
+            "count": len(rooms),
+            "last_update": course_fetcher.last_update
+        })
+    except Exception as e:
+        logger.error(f"Error searching rooms: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to search rooms"
+        }), 500
+
+@app.route('/api/room-schedule')
+@limiter.limit("30 per minute")
+def get_room_schedule():
+    """API endpoint to get the schedule for a specific room"""
+    try:
+        year = request.args.get('year', '2025')
+        term = request.args.get('term', '1')
+        campus = request.args.get('campus', 'NB')
+        building = request.args.get('building', '')
+        room = request.args.get('room', '')
+        
+        if not building or not room:
+            return jsonify({
+                "status": "error",
+                "message": "Building and room must be specified"
+            }), 400
+        
+        room_schedule = room_fetcher.get_room_schedule(
+            building, room, year=year, term=term, campus=campus
+        )
+        
+        return jsonify({
+            "status": "success",
+            "data": room_schedule,
+            "last_update": course_fetcher.last_update
+        })
+    except Exception as e:
+        logger.error(f"Error getting room schedule: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to get room schedule"
+        }), 500
 
 
 if __name__ == '__main__':

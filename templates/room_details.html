@@ -226,28 +226,26 @@
             
             try {
                 const response = await fetch(`/api/salary?name=${encodeURIComponent(instructorName)}`);
-                const data = await response.json();
                 
-                if (data.status === 'success' && data.data) {
-                    const salary = data.data;
+                // Only proceed if we get a successful response
+                if (response.ok) {
+                    const data = await response.json();
                     let salaryText = '';
                     
-                    if (salary.name && salary.salary) {
-                        // Format salary with commas
-                        const formattedSalary = parseInt(salary.salary).toLocaleString('en-US', { 
-                            style: 'currency', 
-                            currency: 'USD',
-                            maximumFractionDigits: 0
-                        });
+                    // Direct API response structure
+                    if (data.name && (data.base_pay || data.gross_pay)) {
+                        // Use gross_pay if available, otherwise base_pay
+                        const salary = data.gross_pay || data.base_pay;
                         
-                        salaryText = `${salary.name}: ${formattedSalary}`;
-                        if (salary.title) {
-                            salaryText += ` - ${salary.title}`;
+                        salaryText = `${data.name}: ${salary}`;
+                        if (data.title) {
+                            salaryText += ` - ${data.title}`;
                         }
                         
                         // Add data attribute for tooltip
                         element.setAttribute('data-salary', salaryText);
                         element.classList.add('has-salary-data');
+                        console.log(`Salary data added for ${instructorName}: ${salaryText}`);
                     }
                 }
             } catch (error) {

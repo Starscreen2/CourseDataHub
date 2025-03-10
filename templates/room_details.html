@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rutgers Room Schedule - {{ building }} {{ room }}</title>
+    <title>Rutgers Room Schedule</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
@@ -11,36 +11,56 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <style>
-        .schedule-card {
-            border-left: 4px solid #cc0033;
+        .table-responsive {
+            overflow-x: auto;
         }
-        .day-column {
-            min-height: 200px;
-        }
-        .time-block {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f8f9fa;
-            border-left: 4px solid #cc0033;
-        }
-        .empty-schedule {
-            color: #6c757d;
-            font-style: italic;
-            padding: 20px;
+        
+        .availability-table th, 
+        .availability-table td {
             text-align: center;
+            vertical-align: middle;
+            padding: 12px;
         }
-        .room-summary {
-            background-color: #f8f9fa;
-            border-left: 4px solid #cc0033;
-            padding: 15px;
-            margin-bottom: 20px;
+        
+        .availability-status {
+            font-weight: bold;
+            padding: 5px 10px;
             border-radius: 5px;
+            display: inline-block;
+        }
+        
+        .status-available {
+            color: #198754;
+            background-color: #d1e7dd;
+        }
+        
+        .status-scheduled {
+            color: #dc3545;
+            background-color: #f8d7da;
+        }
+        
+        .schedule-table th {
+            background-color: #f1f5f9;
+        }
+        
+        .time-slot {
+            font-size: 0.9rem;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+        
+        .class-item {
+            background-color: #e2e8f0;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #4299E1;
         }
     </style>
 </head>
 <body>
-    <!-- Rutgers Navigation Bar -->
+    <!-- Add Rutgers Navigation Bar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand text-outline" href="/">Rutgers Course Search</a>
@@ -68,13 +88,13 @@
 
     <div class="container">
         <div class="d-flex align-items-center mb-4">
-            <h2 class="mb-0">Room Schedule</h2>
-            <a href="/room-search?year={{ year }}&term={{ term }}&campus={{ campus }}" class="btn btn-outline-secondary ms-auto">
+            <a href="/room-search?year={{ year }}&term={{ term }}&campus={{ campus }}" class="btn btn-outline-secondary me-3">
                 <i class="bi bi-arrow-left"></i> Back to Room Search
             </a>
+            <h2 class="mb-0">Room Schedule: <span id="roomName">{{ building }} {{ room }}</span></h2>
         </div>
 
-        <div class="search-params mt-4">
+        <div class="search-params mt-3 mb-4">
             <p class="mb-1">
                 <strong>Year:</strong> {{ year }}
                 <strong class="ms-3">Term:</strong> 
@@ -99,231 +119,170 @@
             <p class="mt-2">Loading room schedule...</p>
         </div>
 
-        <!-- Room information -->
-        <div id="roomInfo" class="mb-4" style="display: none;">
-            <div class="room-summary">
-                <h3 id="roomTitle">{{ building }} {{ room }}</h3>
-                <p id="roomCampus" class="mb-0"></p>
+        <div id="scheduleContent" style="display: none;">
+            <!-- Daily Availability Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Daily Availability</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered availability-table">
+                            <thead>
+                                <tr>
+                                    <th>Monday</th>
+                                    <th>Tuesday</th>
+                                    <th>Wednesday</th>
+                                    <th>Thursday</th>
+                                    <th>Friday</th>
+                                    <th>Saturday</th>
+                                    <th>Sunday</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="availabilityRow">
+                                    <!-- Will be filled by JS -->
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Room availability summary -->
-        <div id="roomAvailability" class="mb-4" style="display: none;">
-            <h4>Room Availability</h4>
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Day</th>
-                            <th>First Class</th>
-                            <th>Last Class</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="availabilityTableBody">
-                        <!-- Will be populated by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Weekly schedule -->
-        <div id="scheduleContainer" style="display: none;">
-            <h4>Weekly Schedule</h4>
-            
-            <ul class="nav nav-tabs" id="scheduleTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="monday-tab" data-bs-toggle="tab" data-bs-target="#monday" type="button" role="tab">Monday</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tuesday-tab" data-bs-toggle="tab" data-bs-target="#tuesday" type="button" role="tab">Tuesday</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="wednesday-tab" data-bs-toggle="tab" data-bs-target="#wednesday" type="button" role="tab">Wednesday</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="thursday-tab" data-bs-toggle="tab" data-bs-target="#thursday" type="button" role="tab">Thursday</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="friday-tab" data-bs-toggle="tab" data-bs-target="#friday" type="button" role="tab">Friday</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="weekend-tab" data-bs-toggle="tab" data-bs-target="#weekend" type="button" role="tab">Weekend</button>
-                </li>
-            </ul>
-            
-            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="scheduleTabContent">
-                <div class="tab-pane fade show active" id="monday" role="tabpanel">
-                    <div id="mondaySchedule" class="day-column">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
+            <!-- Weekly Schedule Section -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Weekly Schedule</h5>
                 </div>
-                <div class="tab-pane fade" id="tuesday" role="tabpanel">
-                    <div id="tuesdaySchedule" class="day-column">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="wednesday" role="tabpanel">
-                    <div id="wednesdaySchedule" class="day-column">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="thursday" role="tabpanel">
-                    <div id="thursdaySchedule" class="day-column">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="friday" role="tabpanel">
-                    <div id="fridaySchedule" class="day-column">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="weekend" role="tabpanel">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Saturday</h5>
-                            <div id="saturdaySchedule" class="day-column">
-                                <!-- Will be populated by JavaScript -->
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Sunday</h5>
-                            <div id="sundaySchedule" class="day-column">
-                                <!-- Will be populated by JavaScript -->
-                            </div>
-                        </div>
+                <div class="card-body">
+                    <div id="weeklySchedule">
+                        <!-- Will be filled by JS -->
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Error message -->
-        <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
     </div>
 
     <script>
-        // Fetch room schedule data
-        async function fetchRoomSchedule() {
+        document.addEventListener('DOMContentLoaded', async () => {
             const loadingSpinner = document.getElementById('loadingSpinner');
-            const roomInfo = document.getElementById('roomInfo');
-            const roomAvailability = document.getElementById('roomAvailability');
-            const scheduleContainer = document.getElementById('scheduleContainer');
-            const errorMessage = document.getElementById('errorMessage');
+            const scheduleContent = document.getElementById('scheduleContent');
+            const availabilityRow = document.getElementById('availabilityRow');
+            const weeklySchedule = document.getElementById('weeklySchedule');
             
             const building = '{{ building }}';
             const room = '{{ room }}';
+            const year = '{{ year }}';
+            const term = '{{ term }}';
+            const campus = '{{ campus }}';
             
             const params = new URLSearchParams({
-                year: '{{ year }}',
-                term: '{{ term }}',
-                campus: '{{ campus }}',
+                year: year,
+                term: term,
+                campus: campus,
                 building: building,
                 room: room
             });
-
+            
             try {
                 const response = await fetch(`/api/room-schedule?${params}`);
                 const data = await response.json();
                 
-                loadingSpinner.style.display = 'none';
-                
                 if (data.status === 'success') {
-                    const roomData = data.data;
+                    const schedule = data.data;
                     
-                    // Display room info
-                    document.getElementById('roomTitle').textContent = `${roomData.building} ${roomData.room}`;
-                    document.getElementById('roomCampus').textContent = `Campus: ${roomData.schedule.Monday.length > 0 ? 
-                        roomData.schedule.Monday[0].campus : (roomData.schedule.Tuesday.length > 0 ? 
-                        roomData.schedule.Tuesday[0].campus : 'Unknown')}`;
-                    roomInfo.style.display = 'block';
-                    
-                    // Create availability table
-                    const availabilityTable = document.getElementById('availabilityTableBody');
-                    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                    let hasAnyClasses = false;
+                    // Fill the availability row
+                    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                    let availabilityHTML = '';
                     
                     days.forEach(day => {
-                        const tr = document.createElement('tr');
-                        const dayCell = document.createElement('td');
-                        dayCell.textContent = day;
-                        tr.appendChild(dayCell);
+                        const daySchedule = schedule.daily_schedule[day];
+                        const statusClass = daySchedule.status === 'Available All Day' ? 'status-available' : 'status-scheduled';
                         
-                        const firstClassCell = document.createElement('td');
-                        const lastClassCell = document.createElement('td');
-                        const statusCell = document.createElement('td');
-                        
-                        if (roomData.occupancy_hours[day]) {
-                            firstClassCell.textContent = roomData.occupancy_hours[day].first_class;
-                            lastClassCell.textContent = roomData.occupancy_hours[day].last_class;
-                            statusCell.innerHTML = '<span class="badge bg-danger">Occupied</span>';
-                            hasAnyClasses = true;
-                        } else {
-                            firstClassCell.textContent = 'N/A';
-                            lastClassCell.textContent = 'N/A';
-                            statusCell.innerHTML = '<span class="badge bg-success">Available All Day</span>';
-                        }
-                        
-                        tr.appendChild(firstClassCell);
-                        tr.appendChild(lastClassCell);
-                        tr.appendChild(statusCell);
-                        availabilityTable.appendChild(tr);
+                        availabilityHTML += `
+                            <td>
+                                <span class="availability-status ${statusClass}">
+                                    ${daySchedule.status}
+                                </span>
+                            </td>
+                        `;
                     });
                     
-                    roomAvailability.style.display = 'block';
+                    availabilityRow.innerHTML = availabilityHTML;
                     
-                    // Populate schedule tabs
-                    populateSchedule('mondaySchedule', roomData.schedule.Monday);
-                    populateSchedule('tuesdaySchedule', roomData.schedule.Tuesday);
-                    populateSchedule('wednesdaySchedule', roomData.schedule.Wednesday);
-                    populateSchedule('thursdaySchedule', roomData.schedule.Thursday);
-                    populateSchedule('fridaySchedule', roomData.schedule.Friday);
-                    populateSchedule('saturdaySchedule', roomData.schedule.Saturday);
-                    populateSchedule('sundaySchedule', roomData.schedule.Sunday);
+                    // Fill the weekly schedule
+                    let weeklyHTML = '';
                     
-                    scheduleContainer.style.display = 'block';
+                    // Group classes by day for better organization
+                    const classesByDay = {};
+                    days.forEach(day => {
+                        classesByDay[day] = schedule.daily_schedule[day].classes || [];
+                    });
                     
-                    // If no classes at all, show a message
-                    if (!hasAnyClasses) {
-                        document.getElementById('scheduleTabContent').innerHTML = '<div class="alert alert-info">This room has no scheduled classes for the selected term.</div>';
-                    }
+                    // Create a section for each day
+                    days.forEach(day => {
+                        const classes = classesByDay[day];
+                        
+                        weeklyHTML += `
+                            <div class="day-schedule mb-4">
+                                <h5 class="day-header">${day}</h5>
+                                <hr>
+                        `;
+                        
+                        if (classes.length === 0) {
+                            weeklyHTML += `
+                                <p class="text-muted">No classes scheduled</p>
+                            `;
+                        } else {
+                            classes.forEach(classItem => {
+                                weeklyHTML += `
+                                    <div class="class-item">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <h6>${classItem.course_code} - ${classItem.course_name}</h6>
+                                                <p class="mb-1"><strong>Section:</strong> ${classItem.section}</p>
+                                                <p class="mb-1"><strong>Instructor:</strong> ${classItem.instructor}</p>
+                                            </div>
+                                            <div class="col-md-4 text-md-end">
+                                                <p class="mb-1"><strong>Time:</strong> ${classItem.start_time} - ${classItem.end_time}</p>
+                                                <p class="mb-0"><strong>Mode:</strong> ${classItem.meeting_mode}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        weeklyHTML += `
+                            </div>
+                        `;
+                    });
                     
+                    weeklySchedule.innerHTML = weeklyHTML;
+                    
+                    // Hide spinner and show content
+                    loadingSpinner.style.display = 'none';
+                    scheduleContent.style.display = 'block';
                 } else {
-                    errorMessage.textContent = data.message || 'Failed to load room schedule';
-                    errorMessage.style.display = 'block';
+                    throw new Error(data.message || 'Failed to load room schedule');
                 }
             } catch (error) {
                 loadingSpinner.style.display = 'none';
-                console.error('Error fetching room schedule:', error);
-                errorMessage.textContent = 'Failed to load room schedule: ' + error.message;
-                errorMessage.style.display = 'block';
+                console.error('Error loading room schedule:', error);
+                
+                // Show error message
+                const container = document.querySelector('.container');
+                container.innerHTML += `
+                    <div class="alert alert-danger mt-4">
+                        <h5>Error Loading Schedule</h5>
+                        <p>${error.message || 'Failed to load room schedule. Please try again later.'}</p>
+                        <a href="/room-search?year=${year}&term=${term}&campus=${campus}" class="btn btn-outline-danger mt-2">
+                            Return to Room Search
+                        </a>
+                    </div>
+                `;
             }
-        }
-        
-        // Populate schedule for a day
-        function populateSchedule(containerId, classes) {
-            const container = document.getElementById(containerId);
-            
-            if (classes && classes.length > 0) {
-                classes.forEach(classInfo => {
-                    const timeBlock = document.createElement('div');
-                    timeBlock.className = 'time-block';
-                    
-                    timeBlock.innerHTML = `
-                        <h6>${classInfo.course} - ${classInfo.title}</h6>
-                        <p class="mb-1"><strong>Time:</strong> ${classInfo.start_time} - ${classInfo.end_time}</p>
-                        <p class="mb-1"><strong>Section:</strong> ${classInfo.section}</p>
-                        <p class="mb-0"><strong>Instructor(s):</strong> ${classInfo.instructors.join(', ') || 'TBA'}</p>
-                    `;
-                    
-                    container.appendChild(timeBlock);
-                });
-            } else {
-                container.innerHTML = '<div class="empty-schedule">No classes scheduled</div>';
-            }
-        }
-        
-        // Load room schedule on page load
-        window.addEventListener('load', fetchRoomSchedule);
+        });
     </script>
 </body>
 </html>

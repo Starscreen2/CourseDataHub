@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <!-- Rutgers Navigation Bar -->
+    <!-- Add Rutgers Navigation Bar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand text-outline" href="/">Rutgers Course Search</a>
@@ -38,7 +38,7 @@
     </nav>
 
     <div class="container">
-        <h2 class="mb-4">Room Search</h2>
+        <h2 class="mb-4">Search</h2>
 
         <div class="search-params mt-4">
             <p class="mb-1">
@@ -68,37 +68,32 @@
             </li>
         </ul>
 
-        <!-- Error message if present -->
-        {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-
         <div class="search-form">
             <form id="roomSearchForm">
                 <div class="form-group">
-                    <input type="text" class="form-control" id="roomSearch" placeholder="Search rooms (e.g., ARC 103, Hill 114, SEC)">
+                    <input type="text" class="form-control" id="search" placeholder="Search rooms (e.g., ARC 103, Hill 114, Beck Hall)">
                 </div>
                 <button type="submit" class="btn btn-primary mt-3">Search Rooms</button>
             </form>
         </div>
 
         <!-- Loading spinner -->
-        <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+        <div id="loadingSpinner" class="loading-spinner">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
             <p class="mt-2">Searching rooms...</p>
         </div>
 
-        <div class="results" id="roomResults"></div>
+        <div class="results" id="results"></div>
     </div>
 
     <script>
         document.getElementById('roomSearchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const search = document.getElementById('roomSearch').value;
+            const search = document.getElementById('search').value;
             const loadingSpinner = document.getElementById('loadingSpinner');
-            const resultsDiv = document.getElementById('roomResults');
+            const resultsDiv = document.getElementById('results');
 
             loadingSpinner.style.display = 'block';
             resultsDiv.innerHTML = '';
@@ -117,50 +112,64 @@
                 loadingSpinner.style.display = 'none';
 
                 if (data.status === 'success' && data.data.length > 0) {
-                    // Group rooms by building
+                    // Group rooms by building for better organization
                     const roomsByBuilding = {};
                     data.data.forEach(room => {
-                        if (!roomsByBuilding[room.building]) {
-                            roomsByBuilding[room.building] = [];
+                        const building = room.building;
+                        if (!roomsByBuilding[building]) {
+                            roomsByBuilding[building] = [];
                         }
-                        roomsByBuilding[room.building].push(room);
+                        roomsByBuilding[building].push(room);
                     });
 
-                    // Create a card for each building
-                    let html = '';
-                    for (const building in roomsByBuilding) {
-                        const rooms = roomsByBuilding[building];
-                        html += `
+                    let resultsHTML = '';
+                    
+                    for (const [building, rooms] of Object.entries(roomsByBuilding)) {
+                        // Create a card for each building
+                        resultsHTML += `
                             <div class="card mb-4">
-                                <div class="card-header">
-                                    <h4>${building}</h4>
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">${building} Building</h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
                         `;
-
-                        // Create room buttons
+                        
+                        // Add rooms in this building
                         rooms.forEach(room => {
-                            html += `
-                                <div class="col-md-3 col-sm-4 col-6 mb-2">
-                                    <a href="/room-details?year={{ year }}&term={{ term }}&campus={{ campus }}&building=${room.building}&room=${room.room}" 
-                                       class="btn btn-outline-primary w-100">
-                                        ${room.room}
-                                    </a>
+                            resultsHTML += `
+                                <div class="col-md-4 col-sm-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body d-flex flex-column">
+                                            <h6 class="card-title">${room.full_name}</h6>
+                                            <p class="card-text mb-1">
+                                                <strong>Building:</strong> ${room.building_name || room.building}
+                                            </p>
+                                            <p class="card-text mb-1">
+                                                <strong>Room:</strong> ${room.room}
+                                            </p>
+                                            <div class="mt-auto pt-2">
+                                                <a href="/room-details?year=${encodeURIComponent('{{ year }}')}&term=${encodeURIComponent('{{ term }}')}&campus=${encodeURIComponent('{{ campus }}')}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
+                                                   class="btn btn-sm btn-primary w-100">
+                                                   <i class="bi bi-calendar-week me-1"></i> View Schedule
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             `;
                         });
-
-                        html += `
+                        
+                        resultsHTML += `
                                     </div>
                                 </div>
                             </div>
                         `;
                     }
-
-                    resultsDiv.innerHTML = html;
+                    
+                    resultsDiv.innerHTML = resultsHTML;
                 } else {
-                    resultsDiv.innerHTML = '<div class="alert alert-info">No rooms found</div>';
+                    resultsDiv.innerHTML = '<div class="alert alert-info">No rooms found matching your search criteria.</div>';
                 }
             } catch (error) {
                 loadingSpinner.style.display = 'none';
@@ -169,8 +178,8 @@
             }
         });
 
-        // Auto-search on page load
-        window.addEventListener('load', () => {
+        // Trigger the search on page load to show all rooms initially
+        window.addEventListener('load', function() {
             document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
         });
     </script>

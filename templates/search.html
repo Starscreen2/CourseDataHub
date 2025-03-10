@@ -156,7 +156,7 @@
                                         ${course.sections.map(section => `
                                             <div class="section-item card mb-3">
                                                 <div class="card-body">
-                                                    <h6>Section ${section.number} (Index: ${section.index})</h6>
+                                                    <h6>Section ${section.number} (Index: ${section.index} <button class="copy-button" onclick="copyToClipboard('${section.index}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy index number"><i class="bi bi-clipboard"></i></button>)</h6>
                                                     <p><strong>Instructors:</strong> 
                                                         ${section.instructors.map(instructor => `
                                                             <span class="instructor-name" 

@@ -1,3 +1,23 @@
+// Function to copy text to clipboard
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show success feedback
+        const activeButton = document.activeElement;
+        if (activeButton && activeButton.classList.contains('copy-button')) {
+            const originalHTML = activeButton.innerHTML;
+            activeButton.innerHTML = '<i class="bi bi-check"></i>';
+            activeButton.classList.add('copy-success');
+            
+            setTimeout(() => {
+                activeButton.innerHTML = originalHTML;
+                activeButton.classList.remove('copy-success');
+            }, 1500);
+        }
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     // Initialize Bootstrap tooltips with HTML enabled
     function initializeTooltips() {

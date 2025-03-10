@@ -65,31 +65,36 @@
             border-bottom: 1px dotted #333;
         }
         
-        .instructor-name[data-salary]:hover::after {
-            content: attr(data-salary);
+        .instructor-tooltip {
             position: absolute;
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
             background-color: #333;
             color: white;
-            padding: 5px 8px;
+            padding: 12px;
             border-radius: 4px;
-            white-space: nowrap;
-            z-index: 100;
+            width: 280px;
+            max-width: 90vw;
+            z-index: 1000;
             font-size: 0.85rem;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
-        .instructor-name[data-salary]:hover::before {
+        .instructor-tooltip:after {
             content: '';
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px;
+            margin-left: -8px;
+            border-width: 8px;
             border-style: solid;
-            border-color: transparent transparent #333 transparent;
-            z-index: 100;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .instructor-name:hover .instructor-tooltip {
+            display: block;
         }
         
         /* Day header styles */
@@ -224,6 +229,14 @@
         async function fetchSalaryData(instructorName, element) {
             if (!instructorName || instructorName === 'TBA') return;
             
+            // Create the tooltip element if it doesn't exist
+            let tooltipElement = element.querySelector('.instructor-tooltip');
+            if (!tooltipElement) {
+                tooltipElement = document.createElement('div');
+                tooltipElement.className = 'instructor-tooltip';
+                element.appendChild(tooltipElement);
+            }
+            
             try {
                 const response = await fetch(`/api/salary?name=${encodeURIComponent(instructorName)}`);
                 
@@ -234,8 +247,8 @@
                     // Direct API response structure
                     if (data.name && (data.base_pay || data.gross_pay)) {
                         // Format tooltip with proper layout
-                        const tooltipHTML = `
-                            <div style="text-align: left; max-width: 280px;">
+                        tooltipElement.innerHTML = `
+                            <div style="text-align: left;">
                                 <em>Special thanks to Github: ibrahimmudassar for the data</em><br><br>
                                 <em>As of December, 2021</em><br><br>
                                 <strong>${data.name}</strong><br><br>
@@ -247,22 +260,19 @@
                                 <strong>Hire Date:</strong> ${data.hire_date}
                             </div>
                         `;
-                        
-                        // Add data attribute for tooltip
-                        element.setAttribute('data-salary', tooltipHTML);
                         element.classList.add('has-salary-data');
                         console.log(`Salary data added for ${instructorName}: ${data.name}`);
+                    } else {
+                        tooltipElement.textContent = "No salary data found";
                     }
                 } else {
                     // Failed to fetch salary data
-                    element.setAttribute('data-salary', "No salary data found");
-                    element.classList.add('has-salary-data');
+                    tooltipElement.textContent = "No salary data found";
                 }
             } catch (error) {
                 console.error(`Error fetching salary for ${instructorName}:`, error);
                 // Set error message on tooltip
-                element.setAttribute('data-salary', "Error fetching salary data");
-                element.classList.add('has-salary-data');
+                tooltipElement.textContent = "Error fetching salary data";
             }
         }
         

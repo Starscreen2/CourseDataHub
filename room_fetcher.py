@@ -56,6 +56,7 @@ class RoomFetcher:
     def search_rooms(self, query: str, year="2025", term="1", campus="NB") -> List[Dict]:
         """
         Search for rooms matching the given query using fuzzy matching.
+        Enhanced to better handle full room names and building names.
         """
         all_rooms = self.get_all_rooms(year, term, campus)
         
@@ -65,11 +66,33 @@ class RoomFetcher:
         # Prepare search fields and weights
         search_fields = [
             ('full_name', 100),      # Highest weight for full room name
+            ('building_name', 95),   # High weight for full building name
             ('building', 90),        # High weight for building code
-            ('building_name', 85),   # Also high weight for building name
             ('room', 80),            # Medium weight for room number
         ]
         
+        # Check for direct matches first (case-insensitive exact or partial matches)
+        query_lower = query.lower()
+        direct_matches = []
+        
+        for room in all_rooms:
+            # Create additional searchable formats for the room
+            building_room = f"{room.get('building', '')} {room.get('room', '')}".lower()
+            building_name_room = f"{room.get('building_name', '')} {room.get('room', '')}".lower()
+            
+            # Check for direct building and room matches
+            if (query_lower == building_room or 
+                query_lower in building_room or 
+                query_lower == building_name_room or 
+                query_lower in building_name_room or
+                query_lower == room.get('full_name', '').lower()):
+                direct_matches.append(room)
+        
+        # If we found direct matches, return them first
+        if direct_matches:
+            return direct_matches
+            
+        # Otherwise, proceed with fuzzy matching
         scored_rooms = []
         
         for room in all_rooms:
@@ -79,22 +102,22 @@ class RoomFetcher:
                 if field in room:
                     # Normalize to string for fuzzy matching
                     field_value = str(room[field]).lower()
-                    query_lower = query.lower()
                     
                     # Calculate scores with different fuzzy algorithms
                     ratio_score = fuzz.ratio(query_lower, field_value) 
                     partial_score = fuzz.partial_ratio(query_lower, field_value)
                     token_sort_score = fuzz.token_sort_ratio(query_lower, field_value)
+                    token_set_score = fuzz.token_set_ratio(query_lower, field_value)
                     
                     # Use the highest score
-                    field_score = max(ratio_score, partial_score, token_sort_score)
+                    field_score = max(ratio_score, partial_score, token_sort_score, token_set_score)
                     
                     # Apply field weight and keep the highest overall score
                     weighted_score = (field_score * weight) / 100
                     max_score = max(max_score, weighted_score)
             
             # Only include rooms that meet the threshold
-            if max_score >= 60:  # Adjust threshold as needed
+            if max_score >= 50:  # Slightly lower threshold to catch more potential matches
                 scored_rooms.append((room, max_score))
         
         # Sort by score descending

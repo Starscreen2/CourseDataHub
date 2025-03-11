@@ -188,3 +188,31 @@ body {
     color: var(--color-success);
     transition: color 0.3s ease;
 }
+
+/* Expandable Room Cards */
+.card-header[data-bs-toggle="collapse"] {
+    transition: background-color 0.3s ease;
+}
+
+.card-header[data-bs-toggle="collapse"]:hover {
+    background-color: #e9ecef !important;
+}
+
+.card-header .bi-chevron-down,
+.card-header .bi-chevron-up {
+    transition: transform 0.3s ease;
+}
+
+.card-header[aria-expanded="true"] .bi-chevron-up {
+    transform: rotate(180deg);
+}
+
+/* Animation for collapsing/expanding */
+.collapse {
+    transition: height 0.35s ease;
+}
+
+/* Badge styling */
+.badge.bg-primary {
+    background-color: #CC0033 !important;
+}

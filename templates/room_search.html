@@ -137,6 +137,11 @@
                         
                         // Add rooms in this building
                         rooms.forEach(room => {
+                            // Format building name for URL (lowercase, replace spaces with hyphens)
+                            const buildingNameForUrl = (room.building_name || room.building).toLowerCase().replace(/\s+/g, '-');
+                            const roomForUrl = room.room.toLowerCase();
+                            const roomDetailsUrl = `/room-details?year=${encodeURIComponent('{{ year }}')}&term=${encodeURIComponent('{{ term }}')}&campus=${encodeURIComponent('{{ campus }}')}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}`;
+                            
                             resultsHTML += `
                                 <div class="col-md-4 col-sm-6 mb-3">
                                     <div class="card h-100">
@@ -149,10 +154,23 @@
                                                 <strong>Room:</strong> ${room.room}
                                             </p>
                                             <div class="mt-auto pt-2">
-                                                <a href="/room-details?year=${encodeURIComponent('{{ year }}')}&term=${encodeURIComponent('{{ term }}')}&campus=${encodeURIComponent('{{ campus }}')}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
-                                                   class="btn btn-sm btn-primary w-100">
-                                                   <i class="bi bi-calendar-week me-1"></i> View Schedule
-                                                </a>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-primary w-100 dropdown-toggle" type="button" id="dropdownMenuButton-${room.building}-${room.room}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="bi bi-three-dots-vertical me-1"></i> Options
+                                                    </button>
+                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton-${room.building}-${room.room}">
+                                                        <li>
+                                                            <a class="dropdown-item" href="${roomDetailsUrl}">
+                                                                <i class="bi bi-calendar-week me-1"></i> View Schedule
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item" href="https://dcs.rutgers.edu/classrooms/${buildingNameForUrl}-room-${roomForUrl}" target="_blank">
+                                                                <i class="bi bi-box-arrow-up-right me-1"></i> DCS Room Info
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

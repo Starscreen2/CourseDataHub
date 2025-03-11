@@ -145,7 +145,7 @@
             <a href="/room-search?year={{ year }}&term={{ term }}&campus={{ campus }}" class="btn btn-outline-secondary me-3">
                 <i class="bi bi-arrow-left"></i> Back to Room Search
             </a>
-            <h2 class="mb-0">Room Schedule: <span id="roomName"></span></h2>
+            <h2 class="mb-0">Room Schedule: <span id="roomName">{{ building }} {{ room }}</span></h2>
         </div>
 
         <div class="search-params mt-3 mb-4">
@@ -302,14 +302,6 @@
                 
                 if (data.status === 'success') {
                     const schedule = data.data;
-                    
-                    // Update room name in header with full building name
-                    const roomNameElement = document.getElementById('roomName');
-                    if (roomNameElement) {
-                        // Use building_name if available, otherwise use building code
-                        const buildingName = schedule.room_info.building_name || schedule.room_info.building;
-                        roomNameElement.textContent = `${buildingName} ${schedule.room_info.room}`;
-                    }
                     
                     // Fill the availability row
                     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];

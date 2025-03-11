@@ -18,7 +18,6 @@ class RoomFetcher:
         """
         Extract and deduplicate room information from course data.
         Returns a list of unique rooms with their details.
-        Enhanced to include more searchable information about rooms.
         """
         rooms = {}
         
@@ -32,7 +31,6 @@ class RoomFetcher:
                     building = meeting_time.get('building', '')
                     room_number = meeting_time.get('room', '')
                     campus = meeting_time.get('campus', '')
-                    building_name = meeting_time.get('building_name', building)
                     
                     # Create unique key for room
                     room_key = f"{building}_{room_number}"
@@ -43,16 +41,7 @@ class RoomFetcher:
                             'room': room_number,
                             'campus': campus,
                             'full_name': f"{building} {room_number}",
-                            'building_name': building_name,
-                            # Add additional searchable formats
-                            'long_name': f"{building_name} {room_number}" if building_name else f"{building} {room_number}",
-                            'searchable_names': [
-                                f"{building} {room_number}",
-                                f"{building_name} {room_number}" if building_name else "",
-                                f"{building_name}" if building_name else "",
-                                f"{building}",
-                                f"{room_number}"
-                            ]
+                            'building_name': meeting_time.get('building_name', building),
                         }
         
         return list(rooms.values())
@@ -76,34 +65,17 @@ class RoomFetcher:
         
         # Prepare search fields and weights
         search_fields = [
-            ('long_name', 100),      # Highest weight for full name with building name
-            ('full_name', 95),       # High weight for full room name (with code)
-            ('building_name', 90),   # High weight for full building name
-            ('building', 85),        # High weight for building code
+            ('full_name', 100),      # Highest weight for full room name
+            ('building_name', 95),   # High weight for full building name
+            ('building', 90),        # High weight for building code
             ('room', 80),            # Medium weight for room number
         ]
         
         # Check for direct matches first (case-insensitive exact or partial matches)
-        query_lower = query.lower().strip()
+        query_lower = query.lower()
         direct_matches = []
         
         for room in all_rooms:
-            # Check each searchable name format
-            if 'searchable_names' in room:
-                for name in room['searchable_names']:
-                    if name and query_lower in name.lower():
-                        direct_matches.append(room)
-                        break
-            
-            # Also check long_name and full_name fields
-            if 'long_name' in room and query_lower in room['long_name'].lower():
-                direct_matches.append(room)
-                continue
-                
-            if 'full_name' in room and query_lower in room['full_name'].lower():
-                direct_matches.append(room)
-                continue
-            
             # Create additional searchable formats for the room
             building_room = f"{room.get('building', '')} {room.get('room', '')}".lower()
             building_name_room = f"{room.get('building_name', '')} {room.get('room', '')}".lower()
@@ -112,20 +84,13 @@ class RoomFetcher:
             if (query_lower == building_room or 
                 query_lower in building_room or 
                 query_lower == building_name_room or 
-                query_lower in building_name_room):
+                query_lower in building_name_room or
+                query_lower == room.get('full_name', '').lower()):
                 direct_matches.append(room)
         
-        # If we found direct matches, return them first (no duplicates)
+        # If we found direct matches, return them first
         if direct_matches:
-            # Remove duplicates while preserving order
-            seen = set()
-            unique_matches = []
-            for room in direct_matches:
-                room_key = f"{room['building']}_{room['room']}"
-                if room_key not in seen:
-                    seen.add(room_key)
-                    unique_matches.append(room)
-            return unique_matches
+            return direct_matches
             
         # Otherwise, proceed with fuzzy matching
         scored_rooms = []
@@ -133,26 +98,8 @@ class RoomFetcher:
         for room in all_rooms:
             max_score = 0
             
-            # Check searchable_names for best fuzzy match
-            if 'searchable_names' in room:
-                for name in room['searchable_names']:
-                    if name:
-                        name_lower = name.lower()
-                        # Calculate scores with different fuzzy algorithms
-                        ratio_score = fuzz.ratio(query_lower, name_lower) 
-                        partial_score = fuzz.partial_ratio(query_lower, name_lower)
-                        token_sort_score = fuzz.token_sort_ratio(query_lower, name_lower)
-                        token_set_score = fuzz.token_set_ratio(query_lower, name_lower)
-                        
-                        # Use the highest score
-                        field_score = max(ratio_score, partial_score, token_sort_score, token_set_score)
-                        
-                        # Keep the highest score
-                        max_score = max(max_score, field_score)
-            
-            # Also check other fields with weighted scores
             for field, weight in search_fields:
-                if field in room and room[field]:
+                if field in room:
                     # Normalize to string for fuzzy matching
                     field_value = str(room[field]).lower()
                     

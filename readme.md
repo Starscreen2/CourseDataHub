@@ -7,6 +7,7 @@ A Flask web application for searching Rutgers University course information in r
 - Search by title, subject, or course number
 - Filter by year, term, and campus
 - Detailed course info (sections, times, instructors, etc.)
+- Detailed classroom search (sections, times, instructors, occupancy, ect.)
 
 ## Tech Stack
 - Backend: Flask (Python 3.11)

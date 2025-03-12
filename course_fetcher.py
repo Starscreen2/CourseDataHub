@@ -142,10 +142,11 @@ class CourseFetcher:
 
     def update_courses(self, year="2025", term="1", campus="NB") -> None:
         """Fetch fresh course data from Rutgers API"""
+        # Define param_key before the try block to make it available in exception handlers
+        param_key = f"{year}_{term}_{campus}"
+        
         try:
             params = {"year": year, "term": term, "campus": campus}
-            param_key = f"{year}_{term}_{campus}"
-
             logger.info(f"Fetching courses with parameters: {params}")
 
             response = self.session.get(self.base_url,
@@ -198,25 +199,72 @@ class CourseFetcher:
         """Filter and rank courses using fuzzy matching on key fields."""
         results = []
         query = query.lower().strip()
+        
+        # Group courses by their course_string for consistent matching
+        course_groups = {}
+        
+        # First check for exact matches on course code (e.g., "01:198:111")
+        exact_matches = []
         for course in courses:
             course_string = course.get("courseString", "").lower()
-            title = course.get("title", "").lower()
             subject = course.get("subject", "").lower()
             course_number = course.get("courseNumber", "").lower()
-
+            title = course.get("title", "").lower()
+            
+            # Store courses by their courseString for grouping
+            if course_string not in course_groups:
+                course_groups[course_string] = []
+            course_groups[course_string].append(course)
+            
+            # Case 1: Exact match on course code (e.g., "01:198:111" or "198:111")
+            if query == course_string or query == f"{subject}:{course_number}":
+                exact_matches.append((100, course_string))
+                continue
+            
+            # Case 2: Exact match on just course number (e.g., "111" or "198")
+            if query == course_number or query == subject:
+                exact_matches.append((95, course_string))
+                continue
+            
+            # Case 3: Fuzzy matching for all other cases
             score_course_string = fuzz.token_set_ratio(query, course_string)
             score_title = fuzz.token_set_ratio(query, title)
             score_subject = fuzz.token_set_ratio(query, subject)
             score_course_number = fuzz.token_set_ratio(query, course_number)
+            # Full subject name matching
+            subject_description = course.get("subjectDescription", "").lower()
+            score_subject_desc = fuzz.token_set_ratio(query, subject_description)
 
             max_score = max(score_course_string, score_title, score_subject,
-                            score_course_number)
+                            score_course_number, score_subject_desc)
+                            
             if max_score >= threshold:
-                results.append((max_score, course))
+                results.append((max_score, course_string))
 
-        # Sort by score descending for best matches
-        results.sort(key=lambda x: x[0], reverse=True)
-        return [course for score, course in results]
+        # Create a unique set of course strings that matched
+        unique_results = {}
+        
+        # First add exact matches with highest priority
+        for score, course_string in exact_matches:
+            unique_results[course_string] = score
+        
+        # Then add fuzzy matches
+        for score, course_string in results:
+            # Only add if not already in results with a higher score
+            if course_string not in unique_results or score > unique_results[course_string]:
+                unique_results[course_string] = score
+        
+        # Convert back to list and sort by score
+        sorted_results = sorted([(score, cs) for cs, score in unique_results.items()], 
+                               key=lambda x: x[0], reverse=True)
+        
+        # Get all courses for each matched course string
+        matched_courses = []
+        for _, course_string in sorted_results:
+            matched_courses.extend(course_groups.get(course_string, []))
+            
+        logger.info(f"Search for '{query}' found {len(matched_courses)} courses from {len(unique_results)} unique course strings")
+        return matched_courses
 
     def get_courses(self,
                     search: Optional[str] = None,
@@ -248,9 +296,6 @@ class CourseFetcher:
             enriched_courses = []
             for course in filtered_courses:
                 try:
-                    # Print raw course data to check if "coreCodes" exists
-                    print("DEBUG: Raw course data ->", json.dumps(course, indent=2))
-
                     enriched_course = {
                         "courseString": course.get("courseString", ""),
                         "title": course.get("title", ""),
@@ -276,12 +321,7 @@ class CourseFetcher:
                             self.format_section(section) for section in course.get("sections", [])
                         ]
                     }
-
-                    # Print extracted core codes to confirm they are working
-                    print("DEBUG: Extracted Core Codes ->", json.dumps(enriched_course["coreRequirements"], indent=2))
-                    # Log the type to ensure it's an array
-                    print("DEBUG: Type of coreRequirements ->", type(enriched_course["coreRequirements"]))
-
+                    
                     enriched_courses.append(enriched_course)
 
                 except Exception as e:

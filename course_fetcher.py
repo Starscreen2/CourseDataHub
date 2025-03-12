@@ -200,39 +200,116 @@ class CourseFetcher:
         results = []
         query = query.lower().strip()
         
+        # Check if query matches common patterns for course codes
+        is_specific_course_query = False
+        subject_part = None
+        number_part = None
+        
+        # Pattern matching for queries like "cs 111", "198:111", "computer science 111"
+        # Common department abbreviations
+        dept_abbrevs = {
+            "cs": "198",  # Computer Science
+            "math": "640",  # Mathematics
+            "bio": "119",  # Biology
+            "chem": "160",  # Chemistry
+            "phys": "750",  # Physics
+            "stat": "960",  # Statistics
+            "econ": "220"   # Economics
+        }
+        
+        # Try to parse common query formats
+        query_parts = query.split()
+        if len(query_parts) == 2:
+            # Format like "cs 111" or "math 152"
+            potential_dept, potential_number = query_parts
+            if potential_number.isdigit():
+                is_specific_course_query = True
+                subject_part = dept_abbrevs.get(potential_dept, potential_dept)
+                number_part = potential_number
+        elif ":" in query:
+            # Format like "198:111"
+            parts = query.split(":")
+            if len(parts) == 2 and parts[1].isdigit():
+                is_specific_course_query = True
+                subject_part = parts[0]
+                number_part = parts[1]
+        elif query.isdigit():
+            # Just a course number like "111"
+            is_specific_course_query = True
+            number_part = query
+        
         # Group courses by their course_string for consistent matching
         course_groups = {}
-        
-        # First check for exact matches on course code (e.g., "01:198:111")
         exact_matches = []
+        high_relevance_matches = []
+        
+        # Process all courses
         for course in courses:
             course_string = course.get("courseString", "").lower()
             subject = course.get("subject", "").lower()
             course_number = course.get("courseNumber", "").lower()
             title = course.get("title", "").lower()
+            subject_description = course.get("subjectDescription", "").lower()
             
             # Store courses by their courseString for grouping
             if course_string not in course_groups:
                 course_groups[course_string] = []
             course_groups[course_string].append(course)
             
-            # Case 1: Exact match on course code (e.g., "01:198:111" or "198:111")
+            # Special handling for CS (Computer Science) department
+            # Common mistake: "cs" searches matching many unrelated courses
+            if query == "cs" and subject != "198":
+                continue
+                
+            # Handle specific course query patterns
+            if is_specific_course_query:
+                # Perfect match on subject and course number
+                if (subject_part and number_part and 
+                    subject == subject_part and course_number == number_part):
+                    exact_matches.append((100, course_string))
+                    continue
+                    
+                # Match on just the course number if that's all we have
+                elif (not subject_part and number_part and
+                     course_number == number_part):
+                    exact_matches.append((95, course_string))
+                    continue
+                    
+                # For dept abbreviation matches like "cs" -> "Computer Science"
+                elif (subject_part in dept_abbrevs.keys() and 
+                      number_part and 
+                      subject == "198" and  # CS department code
+                      course_number == number_part):
+                    exact_matches.append((98, course_string))
+                    continue
+                
+                # For matches on subject description like "computer science"
+                elif (subject_part and number_part and 
+                      subject_part in subject_description and 
+                      course_number == number_part):
+                    high_relevance_matches.append((90, course_string))
+                    continue
+            
+            # Case 1: Exact match on course code
             if query == course_string or query == f"{subject}:{course_number}":
                 exact_matches.append((100, course_string))
                 continue
             
-            # Case 2: Exact match on just course number (e.g., "111" or "198")
+            # Case 2: Exact match on just course number or subject
             if query == course_number or query == subject:
-                exact_matches.append((95, course_string))
+                high_relevance_matches.append((85, course_string))
+                continue
+                
+            # Skip fuzzy matching if we're doing a specific course search
+            # This prevents unrelated courses from showing up
+            if is_specific_course_query:
                 continue
             
-            # Case 3: Fuzzy matching for all other cases
+            # Case 3: Fuzzy matching for general searches
             score_course_string = fuzz.token_set_ratio(query, course_string)
             score_title = fuzz.token_set_ratio(query, title)
             score_subject = fuzz.token_set_ratio(query, subject)
             score_course_number = fuzz.token_set_ratio(query, course_number)
-            # Full subject name matching
-            subject_description = course.get("subjectDescription", "").lower()
             score_subject_desc = fuzz.token_set_ratio(query, subject_description)
 
             max_score = max(score_course_string, score_title, score_subject,
@@ -247,12 +324,17 @@ class CourseFetcher:
         # First add exact matches with highest priority
         for score, course_string in exact_matches:
             unique_results[course_string] = score
-        
-        # Then add fuzzy matches
-        for score, course_string in results:
-            # Only add if not already in results with a higher score
+            
+        # Then add high relevance matches
+        for score, course_string in high_relevance_matches:
             if course_string not in unique_results or score > unique_results[course_string]:
                 unique_results[course_string] = score
+        
+        # Then add fuzzy matches with lowest priority
+        if not is_specific_course_query or len(unique_results) == 0:
+            for score, course_string in results:
+                if course_string not in unique_results or score > unique_results[course_string]:
+                    unique_results[course_string] = score
         
         # Convert back to list and sort by score
         sorted_results = sorted([(score, cs) for cs, score in unique_results.items()], 

@@ -103,9 +103,22 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="timeFilter" class="form-label">Time</label>
-                                    <select class="form-select" id="timeFilter">
-                                        <option value="">Select Time</option>
+                                    <label for="campusFilter" class="form-label">Campus</label>
+                                    <select class="form-select" id="campusFilter">
+                                        <option value="">All Campuses</option>
+                                        <option value="1">College Ave</option>
+                                        <option value="2">Busch</option>
+                                        <option value="3">Livingston</option>
+                                        <option value="4">Cook/Doug</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="startTimeFilter" class="form-label">Start Time</label>
+                                    <select class="form-select" id="startTimeFilter">
+                                        <option value="">Select Start Time</option>
                                         <option value="8:00 AM">8:00 AM</option>
                                         <option value="9:00 AM">9:00 AM</option>
                                         <option value="10:00 AM">10:00 AM</option>
@@ -119,7 +132,26 @@
                                         <option value="6:00 PM">6:00 PM</option>
                                         <option value="7:00 PM">7:00 PM</option>
                                         <option value="8:00 PM">8:00 PM</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="endTimeFilter" class="form-label">End Time</label>
+                                    <select class="form-select" id="endTimeFilter">
+                                        <option value="">Select End Time</option>
+                                        <option value="9:00 AM">9:00 AM</option>
+                                        <option value="10:00 AM">10:00 AM</option>
+                                        <option value="11:00 AM">11:00 AM</option>
+                                        <option value="12:00 PM">12:00 PM</option>
+                                        <option value="1:00 PM">1:00 PM</option>
+                                        <option value="2:00 PM">2:00 PM</option>
+                                        <option value="3:00 PM">3:00 PM</option>
+                                        <option value="4:00 PM">4:00 PM</option>
+                                        <option value="5:00 PM">5:00 PM</option>
+                                        <option value="6:00 PM">6:00 PM</option>
+                                        <option value="7:00 PM">7:00 PM</option>
+                                        <option value="8:00 PM">8:00 PM</option>
                                         <option value="9:00 PM">9:00 PM</option>
+                                        <option value="10:00 PM">10:00 PM</option>
                                     </select>
                                 </div>
                             </div>
@@ -163,7 +195,9 @@
         // Set up event handlers for the filter controls
         const filterAvailableCheckbox = document.getElementById('filterAvailable');
         const dayFilter = document.getElementById('dayFilter');
-        const timeFilter = document.getElementById('timeFilter');
+        const campusFilter = document.getElementById('campusFilter');
+        const startTimeFilter = document.getElementById('startTimeFilter');
+        const endTimeFilter = document.getElementById('endTimeFilter');
         const filterMessage = document.getElementById('filterMessage');
         const availabilityFilters = document.getElementById('availabilityFilters');
         const filterChevron = document.getElementById('filterChevron');
@@ -188,12 +222,46 @@
         
         // Update filter message when selections change
         dayFilter.addEventListener('change', updateFilterMessage);
-        timeFilter.addEventListener('change', updateFilterMessage);
+        startTimeFilter.addEventListener('change', updateFilterMessage);
+        endTimeFilter.addEventListener('change', updateFilterMessage);
+        
+        // Validate that end time is after start time when either changes
+        startTimeFilter.addEventListener('change', validateTimeRange);
+        endTimeFilter.addEventListener('change', validateTimeRange);
+        
+        function validateTimeRange() {
+            if (!startTimeFilter.value || !endTimeFilter.value) return;
+            
+            const startTime = new Date(`01/01/2025 ${startTimeFilter.value}`);
+            const endTime = new Date(`01/01/2025 ${endTimeFilter.value}`);
+            
+            if (startTime >= endTime) {
+                // If start time is not before end time, set end time to one hour after start time
+                let newEndTime = new Date(startTime);
+                newEndTime.setHours(startTime.getHours() + 1);
+                
+                // Convert back to string format like "1:00 PM"
+                const hours = newEndTime.getHours() % 12 || 12;
+                const ampm = newEndTime.getHours() >= 12 ? 'PM' : 'AM';
+                const formattedTime = `${hours}:00 ${ampm}`;
+                
+                // Find and select that option
+                for (let i = 0; i < endTimeFilter.options.length; i++) {
+                    if (endTimeFilter.options[i].value === formattedTime) {
+                        endTimeFilter.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            updateFilterMessage();
+        }
         
         function updateFilterMessage() {
             if (filterAvailableCheckbox.checked) {
-                if (!dayFilter.value || !timeFilter.value) {
+                if (!dayFilter.value || !startTimeFilter.value || !endTimeFilter.value) {
                     filterMessage.classList.remove('d-none');
+                    filterMessage.textContent = 'Select day and time range to filter for available rooms';
                 } else {
                     filterMessage.classList.add('d-none');
                 }
@@ -220,11 +288,18 @@
                 search: search
             });
             
+            // Add campus filter if selected
+            if (campusFilter.value) {
+                params.append('campus_filter', campusFilter.value);
+            }
+            
             // Add availability filters if enabled
-            if (filterAvailableCheckbox.checked && dayFilter.value && timeFilter.value) {
+            if (filterAvailableCheckbox.checked && dayFilter.value && 
+                startTimeFilter.value && endTimeFilter.value) {
                 params.append('filter_available', 'true');
                 params.append('day', dayFilter.value);
-                params.append('time', timeFilter.value);
+                params.append('start_time', startTimeFilter.value);
+                params.append('end_time', endTimeFilter.value);
             }
 
             try {
@@ -237,18 +312,33 @@
                 const filterSummary = document.getElementById('filterSummary');
                 const filterSummaryText = document.getElementById('filterSummaryText');
                 
-                if (filterAvailableCheckbox.checked && dayFilter.value && timeFilter.value) {
+                // Build filter summary text
+                let summaryParts = [];
+                let filtersApplied = false;
+                
+                // Check if availability filter is applied
+                if (filterAvailableCheckbox.checked && dayFilter.value && 
+                    startTimeFilter.value && endTimeFilter.value) {
+                    filtersApplied = true;
+                    summaryParts.push(`rooms available on ${dayFilter.value} from ${startTimeFilter.value} to ${endTimeFilter.value}`);
+                }
+                
+                // Check if campus filter is applied
+                if (campusFilter.value) {
+                    filtersApplied = true;
+                    const campusName = campusFilter.options[campusFilter.selectedIndex].text;
+                    summaryParts.push(`on ${campusName} campus`);
+                }
+                
+                // If search was also applied, add it to the summary
+                if (search) {
+                    summaryParts.push(`matching "${search}"`);
+                }
+                
+                if (filtersApplied) {
                     // Show the filter summary with details
                     filterSummary.classList.remove('d-none');
-                    filterSummaryText.textContent = `Showing rooms available on ${dayFilter.value} at ${timeFilter.value}`;
-                    
-                    // If search was also applied, add it to the summary
-                    if (search) {
-                        filterSummaryText.textContent += ` matching "${search}"`;
-                    }
-                    
-                    // Add count of results
-                    filterSummaryText.textContent += ` (${data.data.length} rooms found)`;
+                    filterSummaryText.textContent = `Showing ${summaryParts.join(' ')} (${data.data.length} rooms found)`;
                 } else {
                     // Hide the filter summary
                     filterSummary.classList.add('d-none');
@@ -300,7 +390,7 @@
                                     <div class="mb-2">
                                         <span class="badge bg-success">
                                             <i class="bi bi-check-circle me-1"></i>
-                                            Available on ${room.checked_day} at ${room.checked_time}
+                                            Available on ${room.checked_day} from ${room.checked_start_time} to ${room.checked_end_time}
                                         </span>
                                     </div>
                                 `;
@@ -359,7 +449,9 @@
             // Reset filter UI
             filterAvailableCheckbox.checked = false;
             dayFilter.value = '';
-            timeFilter.value = '';
+            startTimeFilter.value = '';
+            endTimeFilter.value = '';
+            campusFilter.value = '';
             
             // Hide filter summary and message
             document.getElementById('filterSummary').classList.add('d-none');

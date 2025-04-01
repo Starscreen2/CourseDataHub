@@ -126,12 +126,14 @@ class RoomFetcher:
         
         return sorted_rooms
 
-    def _is_time_in_range(self, target_time: str, start_time: str, end_time: str) -> bool:
+    def _is_time_in_range(self, target_start: str, target_end: str, class_start: str, class_end: str) -> bool:
         """
-        Check if a target time is within a time range.
+        Check if a target time range overlaps with a class time range.
         All times should be in 12-hour format (e.g., '10:00 AM', '2:30 PM').
+        
+        Returns True if there is any overlap between the target range and class range.
         """
-        if start_time == 'TBA' or end_time == 'TBA':
+        if class_start == 'TBA' or class_end == 'TBA':
             return False
             
         try:
@@ -141,30 +143,67 @@ class RoomFetcher:
             
             # Convert to datetime objects
             time_format = '%I:%M %p'  # 12-hour format with AM/PM
-            target_dt = datetime.datetime.strptime(target_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            start_dt = datetime.datetime.strptime(start_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            end_dt = datetime.datetime.strptime(end_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            target_start_dt = datetime.datetime.strptime(target_start, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            target_end_dt = datetime.datetime.strptime(target_end, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            class_start_dt = datetime.datetime.strptime(class_start, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            class_end_dt = datetime.datetime.strptime(class_end, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
             
-            # Check if target time is within range (inclusive of start, exclusive of end)
-            return start_dt <= target_dt < end_dt
+            # Check for any overlap between the ranges
+            # Two ranges overlap if one range's start is before the other's end and vice versa
+            return (target_start_dt < class_end_dt and class_start_dt < target_end_dt)
         except ValueError as e:
             self.logger.error(f"Error parsing time: {e}")
             return False
-
-    def find_available_rooms(self, day: str, time: str, year="2025", term="1", campus="NB", search: str = "") -> List[Dict]:
+    
+    def _filter_by_campus(self, rooms: List[Dict], campus_filter: str) -> List[Dict]:
         """
-        Find rooms that are available at a specific day and time.
+        Filter rooms by specific campus.
+        
+        Parameters:
+        - rooms: List of room dictionaries to filter
+        - campus_filter: Campus string to filter by (e.g., "College Ave", "Busch", etc.)
+        
+        Returns a filtered list of rooms on the specified campus.
+        """
+        if not campus_filter:
+            return rooms
+            
+        campus_code_map = {
+            "1": "College Ave",
+            "2": "Busch",
+            "3": "Livingston", 
+            "4": "Cook/Doug"
+        }
+        
+        # Get the campus name if a code was provided
+        campus_name = campus_code_map.get(campus_filter, campus_filter)
+        
+        # Filter rooms by campus
+        return [room for room in rooms if room.get('campus_name', '') == campus_name or 
+                campus_code_map.get(room.get('campus', '')) == campus_name]
+
+    def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2025", 
+                            term="1", campus="NB", campus_filter="", search: str = "") -> List[Dict]:
+        """
+        Find rooms that are available during a specific day and time range.
         
         Parameters:
         - day: Day of the week (Monday, Tuesday, etc.)
-        - time: Time to check availability (e.g., '10:00 AM')
+        - start_time: Start time of range to check (e.g., '10:00 AM')
+        - end_time: End time of range to check (e.g., '11:00 AM')
         - year, term, campus: Academic period parameters
+        - campus_filter: Optional campus filter (e.g., "College Ave", "Busch")
         - search: Optional search query to filter rooms
         
         Returns a list of available rooms with their details.
         """
         # Get all rooms (optionally filtered by search query)
         all_rooms = self.search_rooms(search, year, term, campus)
+        
+        # Apply campus filter if specified
+        if campus_filter:
+            all_rooms = self._filter_by_campus(all_rooms, campus_filter)
+            
         available_rooms = []
         
         # Get all course data for scheduling analysis
@@ -187,11 +226,11 @@ class RoomFetcher:
                             meeting_time.get('day') != day):
                             continue
                         
-                        # Check if our target time falls within this class's time range
-                        start_time = meeting_time.get('start_time', {}).get('formatted', 'TBA')
-                        end_time = meeting_time.get('end_time', {}).get('formatted', 'TBA')
+                        # Check if our target time range overlaps with this class's time range
+                        class_start = meeting_time.get('start_time', {}).get('formatted', 'TBA')
+                        class_end = meeting_time.get('end_time', {}).get('formatted', 'TBA')
                         
-                        if self._is_time_in_range(time, start_time, end_time):
+                        if self._is_time_in_range(start_time, end_time, class_start, class_end):
                             is_available = False
                             break
                     
@@ -207,7 +246,8 @@ class RoomFetcher:
                 room_with_availability = room_info.copy()
                 room_with_availability['is_available'] = True
                 room_with_availability['checked_day'] = day
-                room_with_availability['checked_time'] = time
+                room_with_availability['checked_start_time'] = start_time
+                room_with_availability['checked_end_time'] = end_time
                 available_rooms.append(room_with_availability)
         
         return available_rooms

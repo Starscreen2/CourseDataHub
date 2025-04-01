@@ -169,28 +169,37 @@ def get_rooms():
         # Get availability filter parameters
         filter_available = request.args.get('filter_available', '').lower() == 'true'
         day = request.args.get('day', '')
-        time = request.args.get('time', '')
+        start_time = request.args.get('start_time', '')
+        end_time = request.args.get('end_time', '')
+        campus_filter = request.args.get('campus_filter', '')
         
-        if filter_available and day and time:
-            # Filter rooms by availability
-            logger.debug(f"Filtering for available rooms on {day} at {time}")
+        if filter_available and day and start_time and end_time:
+            # Filter rooms by availability in time range
+            logger.debug(f"Filtering for available rooms on {day} from {start_time} to {end_time}")
             rooms = room_fetcher.find_available_rooms(
                 day=day, 
-                time=time, 
+                start_time=start_time,
+                end_time=end_time,
                 year=year, 
                 term=term, 
                 campus=campus,
+                campus_filter=campus_filter,
                 search=search
             )
         else:
             # Regular room search without availability filtering
             rooms = room_fetcher.search_rooms(search, year=year, term=term, campus=campus)
+            
+            # Apply campus filter if specified (for basic search without time filtering)
+            if campus_filter and hasattr(room_fetcher, '_filter_by_campus'):
+                rooms = room_fetcher._filter_by_campus(rooms, campus_filter)
         
         return jsonify({
             "status": "success",
             "data": rooms,
             "count": len(rooms),
-            "filter_applied": filter_available and day and time,
+            "filter_applied": filter_available and day and start_time and end_time,
+            "campus_filter_applied": bool(campus_filter),
             "last_update": course_fetcher.last_update
         })
     except Exception as e:

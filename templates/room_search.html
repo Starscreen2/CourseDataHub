@@ -105,16 +105,33 @@
                             </div>
                             
                             <div class="row">
-                                <div class="col-12 mb-3">
-                                    <label for="timeRangeSlider" class="form-label">Time Range: <span id="timeRangeDisplay">8:00 AM - 9:40 AM</span></label>
-                                    <div class="mt-1">
-                                        <input type="range" class="form-range" id="timeRangeSlider" min="0" max="15" value="0">
+                                <div class="col-12 mb-4">
+                                    <label class="form-label mb-3">Time Range: <span id="timeRangeDisplay">8:00 AM - 9:40 AM</span></label>
+                                    
+                                    <div class="mb-3">
+                                        <label for="startTimeSlider" class="form-label small">Start Time</label>
+                                        <div class="mt-1">
+                                            <input type="range" class="form-range" id="startTimeSlider" min="0" max="20" value="0">
+                                        </div>
+                                        <div class="d-flex justify-content-between small text-muted">
+                                            <span>8 AM</span>
+                                            <span>12 PM</span>
+                                            <span>4 PM</span>
+                                            <span>10 PM</span>
+                                        </div>
                                     </div>
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span>8 AM</span>
-                                        <span>12 PM</span>
-                                        <span>4 PM</span>
-                                        <span>10 PM</span>
+                                    
+                                    <div class="mb-1">
+                                        <label for="endTimeSlider" class="form-label small">End Time</label>
+                                        <div class="mt-1">
+                                            <input type="range" class="form-range" id="endTimeSlider" min="0" max="20" value="1">
+                                        </div>
+                                        <div class="d-flex justify-content-between small text-muted">
+                                            <span>8 AM</span>
+                                            <span>12 PM</span>
+                                            <span>4 PM</span>
+                                            <span>10 PM</span>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -164,47 +181,73 @@
         const dayFilter = document.getElementById('dayFilter');
         const startTimeFilter = document.getElementById('startTimeFilter');
         const endTimeFilter = document.getElementById('endTimeFilter');
-        const timeRangeSlider = document.getElementById('timeRangeSlider');
+        const startTimeSlider = document.getElementById('startTimeSlider');
+        const endTimeSlider = document.getElementById('endTimeSlider');
         const timeRangeDisplay = document.getElementById('timeRangeDisplay');
         const filterMessage = document.getElementById('filterMessage');
         const availabilityFilters = document.getElementById('availabilityFilters');
         const filterChevron = document.getElementById('filterChevron');
         
-        // Define class periods that align with university schedule
-        const classPeriods = [
-            { period: 1, startTime: "8:00 AM", endTime: "9:40 AM" },
-            { period: 2, startTime: "9:50 AM", endTime: "11:30 AM" },
-            { period: 3, startTime: "11:40 AM", endTime: "1:20 PM" },
-            { period: 4, startTime: "1:30 PM", endTime: "3:10 PM" },
-            { period: 5, startTime: "3:20 PM", endTime: "5:00 PM" },
-            { period: 6, startTime: "5:10 PM", endTime: "6:50 PM" },
-            { period: 7, startTime: "7:00 PM", endTime: "8:40 PM" },
-            { period: 8, startTime: "8:50 PM", endTime: "10:30 PM" },
-            // Shorter class periods
-            { period: 9, startTime: "8:00 AM", endTime: "9:20 AM" },
-            { period: 10, startTime: "9:30 AM", endTime: "10:50 AM" },
-            { period: 11, startTime: "11:00 AM", endTime: "12:20 PM" },
-            { period: 12, startTime: "12:30 PM", endTime: "1:50 PM" },
-            { period: 13, startTime: "2:00 PM", endTime: "3:20 PM" },
-            { period: 14, startTime: "3:30 PM", endTime: "4:50 PM" },
-            { period: 15, startTime: "5:00 PM", endTime: "6:20 PM" },
-            { period: 16, startTime: "6:30 PM", endTime: "7:50 PM" }
+        // Define class time options for the sliders
+        const timeOptions = [
+            { value: "8:00 AM", label: "8:00 AM" },
+            { value: "9:00 AM", label: "9:00 AM" },
+            { value: "9:30 AM", label: "9:30 AM" },
+            { value: "10:00 AM", label: "10:00 AM" },
+            { value: "10:30 AM", label: "10:30 AM" },
+            { value: "11:00 AM", label: "11:00 AM" },
+            { value: "11:30 AM", label: "11:30 AM" },
+            { value: "12:00 PM", label: "12:00 PM" },
+            { value: "12:30 PM", label: "12:30 PM" },
+            { value: "1:00 PM", label: "1:00 PM" },
+            { value: "1:30 PM", label: "1:30 PM" },
+            { value: "2:00 PM", label: "2:00 PM" },
+            { value: "2:30 PM", label: "2:30 PM" },
+            { value: "3:00 PM", label: "3:00 PM" },
+            { value: "4:00 PM", label: "4:00 PM" },
+            { value: "5:00 PM", label: "5:00 PM" },
+            { value: "6:00 PM", label: "6:00 PM" },
+            { value: "7:00 PM", label: "7:00 PM" },
+            { value: "8:00 PM", label: "8:00 PM" },
+            { value: "9:00 PM", label: "9:00 PM" },
+            { value: "10:00 PM", label: "10:00 PM" }
+        ];
+
+        // Time offset options that match standard class durations
+        const timeOffsets = [
+            { value: "1 hr", minutes: 60 },
+            { value: "1 hr 20 min", minutes: 80 },
+            { value: "1 hr 30 min", minutes: 90 },
+            { value: "1 hr 40 min", minutes: 100 },
+            { value: "2 hr", minutes: 120 },
+            { value: "2 hr 30 min", minutes: 150 },
+            { value: "3 hr", minutes: 180 }
         ];
         
-        // Update time range when slider changes
-        timeRangeSlider.addEventListener('input', updateTimeRangeFromSlider);
+        // Update time range when sliders change
+        startTimeSlider.addEventListener('input', updateTimeRange);
+        endTimeSlider.addEventListener('input', updateTimeRange);
         
-        // Initialize with the first period
-        updateTimeRangeFromSlider();
+        // Initialize with default values
+        updateTimeRange();
         
-        function updateTimeRangeFromSlider() {
-            const selectedPeriodIndex = parseInt(timeRangeSlider.value);
-            const selectedPeriod = classPeriods[selectedPeriodIndex];
+        function updateTimeRange() {
+            const startIndex = parseInt(startTimeSlider.value);
+            const endIndex = parseInt(endTimeSlider.value);
+            
+            // Make sure end index is always at least one position after start index
+            if (endIndex <= startIndex) {
+                endTimeSlider.value = Math.min(startIndex + 1, timeOptions.length - 1);
+            }
+            
+            // Get the selected start and end times
+            const startTime = timeOptions[parseInt(startTimeSlider.value)].value;
+            const endTime = timeOptions[parseInt(endTimeSlider.value)].value;
             
             // Update display and hidden form values
-            timeRangeDisplay.textContent = `${selectedPeriod.startTime} - ${selectedPeriod.endTime}`;
-            startTimeFilter.value = selectedPeriod.startTime;
-            endTimeFilter.value = selectedPeriod.endTime;
+            timeRangeDisplay.textContent = `${startTime} - ${endTime}`;
+            startTimeFilter.value = startTime;
+            endTimeFilter.value = endTime;
             
             // Update filter message
             updateFilterMessage();
@@ -413,9 +456,10 @@
             // Reset filter UI
             filterAvailableCheckbox.checked = false;
             dayFilter.value = '';
-            // Reset time range slider to first period
-            timeRangeSlider.value = 0;
-            updateTimeRangeFromSlider();
+            // Reset time range sliders
+            startTimeSlider.value = 0;
+            endTimeSlider.value = 1;
+            updateTimeRange();
             
             // Hide filter summary and message
             document.getElementById('filterSummary').classList.add('d-none');

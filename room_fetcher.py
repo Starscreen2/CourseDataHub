@@ -23,7 +23,11 @@ class RoomFetcher:
         rooms = {}
         
         for course in courses:
+            course_campus_code = course.get('campusCode', '')
+            
             for section in course.get('sections', []):
+                section_campus_code = section.get('campusCode', '')
+                
                 for meeting_time in section.get('meeting_times', []):
                     # Skip online or missing location courses
                     if not meeting_time.get('building') or not meeting_time.get('room'):
@@ -31,21 +35,70 @@ class RoomFetcher:
                     
                     building = meeting_time.get('building', '')
                     room_number = meeting_time.get('room', '')
-                    campus = meeting_time.get('campus', '')
+                    
+                    # Try to get campus information from multiple possible sources
+                    campus_info = None
+                    campus_name = None
+                    
+                    # First try meeting time specific campus data
+                    campus_location = meeting_time.get('campusLocation', '')
+                    campus_code = meeting_time.get('campus', '')
+                    campus_name = meeting_time.get('campusName', '')
+                    campus_abbrev = meeting_time.get('campusAbbrev', '')
+                    
+                    if campus_code:
+                        campus_info = campus_code
+                    elif campus_location:
+                        campus_info = campus_location
+                    elif campus_abbrev and campus_abbrev != '**': # Avoid invalid campus code
+                        campus_info = campus_abbrev
+                    elif section_campus_code:
+                        campus_info = section_campus_code
+                    elif course_campus_code:
+                        campus_info = course_campus_code
                     
                     # Create unique key for room
                     room_key = f"{building}_{room_number}"
+                    
+                    # Map numeric campus codes to their names
+                    campus_code_map = {
+                        "1": "College Ave",
+                        "2": "Busch",
+                        "3": "Livingston", 
+                        "4": "Cook/Doug"
+                    }
+                    
+                    if campus_info in campus_code_map:
+                        campus_name = campus_code_map[campus_info]
+                    elif not campus_name:
+                        # If we don't have a name but have a code, do a rough conversion
+                        # This will help with campus filtering
+                        if campus_info == 'CA':
+                            campus_name = "College Ave"
+                        elif campus_info == 'BU':
+                            campus_name = "Busch"
+                        elif campus_info == 'LIV':
+                            campus_name = "Livingston"
+                        elif campus_info == 'CD':
+                            campus_name = "Cook/Doug"
                     
                     if room_key not in rooms:
                         rooms[room_key] = {
                             'building': building,
                             'room': room_number,
-                            'campus': campus,
+                            'campus': campus_info,
+                            'campus_name': campus_name,
                             'full_name': f"{building} {room_number}",
-                            'building_name': meeting_time.get('building_name', building),
+                            'building_name': meeting_time.get('buildingName', building),
                         }
         
-        return list(rooms.values())
+        # Log a few sample rooms for debugging
+        room_values = list(rooms.values())
+        if room_values and len(room_values) > 0:
+            for i in range(min(3, len(room_values))):
+                self.logger.debug(f"Extracted room {i}: {room_values[i]}")
+                
+        return room_values
 
     def get_all_rooms(self, year="2025", term="1", campus="NB") -> List[Dict]:
         """
@@ -175,12 +228,62 @@ class RoomFetcher:
             "4": "Cook/Doug"
         }
         
+        # Additional mappings for different code formats
+        campus_abbrev_map = {
+            "CA": "College Ave",
+            "BU": "Busch",
+            "LIV": "Livingston",
+            "CD": "Cook/Doug",
+            "C/D": "Cook/Doug",
+            "D/C": "Cook/Doug"
+        }
+        
         # Get the campus name if a code was provided
         campus_name = campus_code_map.get(campus_filter, campus_filter)
         
+        # Log a sample room to see its structure
+        if rooms and len(rooms) > 0:
+            sample_room = rooms[0]
+            self.logger.debug(f"Sample room structure: {sample_room}")
+            self.logger.debug(f"Campus filter: {campus_filter}, Campus name: {campus_name}")
+        
         # Filter rooms by campus
-        return [room for room in rooms if room.get('campus_name', '') == campus_name or 
-                campus_code_map.get(room.get('campus', '')) == campus_name]
+        filtered_rooms = []
+        
+        for room in rooms:
+            # Get campus info from the room, directly from our enhanced room structure
+            room_campus_code = room.get('campus')
+            room_campus_name = room.get('campus_name')
+            
+            # Determine if this room matches the filter
+            is_match = False
+            
+            # If we have a campus name from the room that matches directly
+            if room_campus_name and (
+                room_campus_name == campus_name or
+                room_campus_name.lower() == campus_name.lower()):
+                is_match = True
+            
+            # If we have a campus code from the room, check all possible mappings
+            elif room_campus_code:
+                # Check if code maps directly
+                mapped_name = campus_code_map.get(room_campus_code)
+                if mapped_name and mapped_name == campus_name:
+                    is_match = True
+                    
+                # Check abbreviation mappings
+                elif not mapped_name:
+                    mapped_name = campus_abbrev_map.get(room_campus_code)
+                    if mapped_name and mapped_name == campus_name:
+                        is_match = True
+            
+            # If there's a match, add to filtered list
+            if is_match:
+                self.logger.debug(f"Match: Room {room.get('building', '')} {room.get('room', '')}")
+                filtered_rooms.append(room)
+        
+        self.logger.debug(f"Campus filter '{campus_name}' found {len(filtered_rooms)} of {len(rooms)} rooms")
+        return filtered_rooms
 
     def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2025", 
                             term="1", campus="NB", campus_filter="", search: str = "") -> List[Dict]:

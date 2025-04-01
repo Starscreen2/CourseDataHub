@@ -71,10 +71,67 @@
 
         <div class="search-form">
             <form id="roomSearchForm">
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <input type="text" class="form-control" id="search" placeholder="Search rooms (e.g., ARC 103, Hill 114, Beck Hall)">
                 </div>
-                <button type="submit" class="btn btn-primary mt-3">Search Rooms</button>
+                
+                <!-- Availability Filters -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light" data-bs-toggle="collapse" data-bs-target="#availabilityFilters" aria-expanded="false" style="cursor: pointer;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <input type="checkbox" id="filterAvailable" class="form-check-input me-2" onclick="event.stopPropagation()">
+                                <label for="filterAvailable" class="form-check-label">Filter by Availability</label>
+                            </h6>
+                            <i class="bi bi-chevron-down" id="filterChevron"></i>
+                        </div>
+                    </div>
+                    <div id="availabilityFilters" class="collapse">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="dayFilter" class="form-label">Day</label>
+                                    <select class="form-select" id="dayFilter">
+                                        <option value="">Select Day</option>
+                                        <option value="Monday">Monday</option>
+                                        <option value="Tuesday">Tuesday</option>
+                                        <option value="Wednesday">Wednesday</option>
+                                        <option value="Thursday">Thursday</option>
+                                        <option value="Friday">Friday</option>
+                                        <option value="Saturday">Saturday</option>
+                                        <option value="Sunday">Sunday</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="timeFilter" class="form-label">Time</label>
+                                    <select class="form-select" id="timeFilter">
+                                        <option value="">Select Time</option>
+                                        <option value="8:00 AM">8:00 AM</option>
+                                        <option value="9:00 AM">9:00 AM</option>
+                                        <option value="10:00 AM">10:00 AM</option>
+                                        <option value="11:00 AM">11:00 AM</option>
+                                        <option value="12:00 PM">12:00 PM</option>
+                                        <option value="1:00 PM">1:00 PM</option>
+                                        <option value="2:00 PM">2:00 PM</option>
+                                        <option value="3:00 PM">3:00 PM</option>
+                                        <option value="4:00 PM">4:00 PM</option>
+                                        <option value="5:00 PM">5:00 PM</option>
+                                        <option value="6:00 PM">6:00 PM</option>
+                                        <option value="7:00 PM">7:00 PM</option>
+                                        <option value="8:00 PM">8:00 PM</option>
+                                        <option value="9:00 PM">9:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="filter-message alert alert-info d-none" id="filterMessage">
+                                Select both day and time to filter for available rooms
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-2">Search Rooms</button>
             </form>
         </div>
 
@@ -85,11 +142,67 @@
             </div>
             <p class="mt-2">Searching rooms...</p>
         </div>
+        
+        <!-- Filter summary -->
+        <div id="filterSummary" class="alert alert-success mb-3 d-none">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-funnel-fill me-2"></i>
+                    <span id="filterSummaryText"></span>
+                </div>
+                <button type="button" id="clearFilters" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-x-circle me-1"></i>Clear Filter
+                </button>
+            </div>
+        </div>
 
         <div class="results" id="results"></div>
     </div>
 
     <script>
+        // Set up event handlers for the filter controls
+        const filterAvailableCheckbox = document.getElementById('filterAvailable');
+        const dayFilter = document.getElementById('dayFilter');
+        const timeFilter = document.getElementById('timeFilter');
+        const filterMessage = document.getElementById('filterMessage');
+        const availabilityFilters = document.getElementById('availabilityFilters');
+        const filterChevron = document.getElementById('filterChevron');
+        
+        // Toggle the availability filters when checkbox is clicked
+        filterAvailableCheckbox.addEventListener('change', () => {
+            if (filterAvailableCheckbox.checked) {
+                // Open the filters panel if it's not already open
+                if (!availabilityFilters.classList.contains('show')) {
+                    availabilityFilters.classList.add('show');
+                    filterChevron.classList.remove('bi-chevron-down');
+                    filterChevron.classList.add('bi-chevron-up');
+                }
+                
+                // Show or hide message based on filter selections
+                updateFilterMessage();
+            } else {
+                // Hide the message when filter is disabled
+                filterMessage.classList.add('d-none');
+            }
+        });
+        
+        // Update filter message when selections change
+        dayFilter.addEventListener('change', updateFilterMessage);
+        timeFilter.addEventListener('change', updateFilterMessage);
+        
+        function updateFilterMessage() {
+            if (filterAvailableCheckbox.checked) {
+                if (!dayFilter.value || !timeFilter.value) {
+                    filterMessage.classList.remove('d-none');
+                } else {
+                    filterMessage.classList.add('d-none');
+                }
+            } else {
+                filterMessage.classList.add('d-none');
+            }
+        }
+        
+        // Handle the form submission with filters
         document.getElementById('roomSearchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const search = document.getElementById('search').value;
@@ -99,18 +212,47 @@
             loadingSpinner.style.display = 'block';
             resultsDiv.innerHTML = '';
 
+            // Build base parameters
             const params = new URLSearchParams({
                 year: '{{ year }}',
                 term: '{{ term }}',
                 campus: '{{ campus }}',
                 search: search
             });
+            
+            // Add availability filters if enabled
+            if (filterAvailableCheckbox.checked && dayFilter.value && timeFilter.value) {
+                params.append('filter_available', 'true');
+                params.append('day', dayFilter.value);
+                params.append('time', timeFilter.value);
+            }
 
             try {
                 const response = await fetch(`/api/rooms?${params}`);
                 const data = await response.json();
 
                 loadingSpinner.style.display = 'none';
+                
+                // Update filter summary if filters are applied
+                const filterSummary = document.getElementById('filterSummary');
+                const filterSummaryText = document.getElementById('filterSummaryText');
+                
+                if (filterAvailableCheckbox.checked && dayFilter.value && timeFilter.value) {
+                    // Show the filter summary with details
+                    filterSummary.classList.remove('d-none');
+                    filterSummaryText.textContent = `Showing rooms available on ${dayFilter.value} at ${timeFilter.value}`;
+                    
+                    // If search was also applied, add it to the summary
+                    if (search) {
+                        filterSummaryText.textContent += ` matching "${search}"`;
+                    }
+                    
+                    // Add count of results
+                    filterSummaryText.textContent += ` (${data.data.length} rooms found)`;
+                } else {
+                    // Hide the filter summary
+                    filterSummary.classList.add('d-none');
+                }
 
                 if (data.status === 'success' && data.data.length > 0) {
                     // Group rooms by building for better organization
@@ -148,9 +290,25 @@
                         
                         // Add rooms in this building
                         rooms.forEach(room => {
+                            // Check if availability filter was applied
+                            const isAvailabilityFiltered = room.hasOwnProperty('is_available');
+                            
+                            // Prepare availability badge if filtering was applied
+                            let availabilityBadge = '';
+                            if (isAvailabilityFiltered) {
+                                availabilityBadge = `
+                                    <div class="mb-2">
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            Available on ${room.checked_day} at ${room.checked_time}
+                                        </span>
+                                    </div>
+                                `;
+                            }
+                            
                             resultsHTML += `
                                 <div class="col-md-4 col-sm-6 mb-3">
-                                    <div class="card h-100">
+                                    <div class="card h-100 ${isAvailabilityFiltered ? 'border-success' : ''}">
                                         <div class="card-body d-flex flex-column">
                                             <h6 class="card-title">${room.full_name}</h6>
                                             <p class="card-text mb-1">
@@ -159,6 +317,7 @@
                                             <p class="card-text mb-1">
                                                 <strong>Room:</strong> ${room.room}
                                             </p>
+                                            ${availabilityBadge}
                                             <div class="mt-auto pt-2">
                                                 <a href="/room-details?year=${encodeURIComponent('{{ year }}')}&term=${encodeURIComponent('{{ term }}')}&campus=${encodeURIComponent('{{ campus }}')}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
                                                    class="btn btn-sm btn-primary w-100">
@@ -192,6 +351,28 @@
 
         // Trigger the search on page load to show all rooms initially
         window.addEventListener('load', function() {
+            document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+        });
+        
+        // Set up the clear filters button
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            // Reset filter UI
+            filterAvailableCheckbox.checked = false;
+            dayFilter.value = '';
+            timeFilter.value = '';
+            
+            // Hide filter summary and message
+            document.getElementById('filterSummary').classList.add('d-none');
+            filterMessage.classList.add('d-none');
+            
+            // Close the filter panel
+            if (availabilityFilters.classList.contains('show')) {
+                availabilityFilters.classList.remove('show');
+                filterChevron.classList.remove('bi-chevron-up');
+                filterChevron.classList.add('bi-chevron-down');
+            }
+            
+            // Trigger a new search without filters
             document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
         });
         

@@ -159,19 +159,38 @@ def room_details_page():
 @app.route('/api/rooms')
 @limiter.limit("50 per minute")
 def get_rooms():
-    """API endpoint to get rooms matching a query"""
+    """API endpoint to get rooms matching a query, with optional availability filtering"""
     try:
         year = request.args.get('year', '2025')
         term = request.args.get('term', '1')
         campus = request.args.get('campus', 'NB')
         search = request.args.get('search', '')
         
-        rooms = room_fetcher.search_rooms(search, year=year, term=term, campus=campus)
+        # Get availability filter parameters
+        filter_available = request.args.get('filter_available', '').lower() == 'true'
+        day = request.args.get('day', '')
+        time = request.args.get('time', '')
+        
+        if filter_available and day and time:
+            # Filter rooms by availability
+            logger.debug(f"Filtering for available rooms on {day} at {time}")
+            rooms = room_fetcher.find_available_rooms(
+                day=day, 
+                time=time, 
+                year=year, 
+                term=term, 
+                campus=campus,
+                search=search
+            )
+        else:
+            # Regular room search without availability filtering
+            rooms = room_fetcher.search_rooms(search, year=year, term=term, campus=campus)
         
         return jsonify({
             "status": "success",
             "data": rooms,
             "count": len(rooms),
+            "filter_applied": filter_available and day and time,
             "last_update": course_fetcher.last_update
         })
     except Exception as e:

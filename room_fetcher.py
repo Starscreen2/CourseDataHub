@@ -1,4 +1,5 @@
 import logging
+import datetime
 from typing import Dict, List, Optional
 from course_fetcher import CourseFetcher
 from rapidfuzz import fuzz, process
@@ -124,6 +125,92 @@ class RoomFetcher:
         sorted_rooms = [room for room, score in sorted(scored_rooms, key=lambda x: x[1], reverse=True)]
         
         return sorted_rooms
+
+    def _is_time_in_range(self, target_time: str, start_time: str, end_time: str) -> bool:
+        """
+        Check if a target time is within a time range.
+        All times should be in 12-hour format (e.g., '10:00 AM', '2:30 PM').
+        """
+        if start_time == 'TBA' or end_time == 'TBA':
+            return False
+            
+        try:
+            # Parse all times to datetime objects for comparison
+            # We use a dummy date just to have a complete datetime object
+            dummy_date = datetime.datetime.today().date()
+            
+            # Convert to datetime objects
+            time_format = '%I:%M %p'  # 12-hour format with AM/PM
+            target_dt = datetime.datetime.strptime(target_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            start_dt = datetime.datetime.strptime(start_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            end_dt = datetime.datetime.strptime(end_time, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
+            
+            # Check if target time is within range (inclusive of start, exclusive of end)
+            return start_dt <= target_dt < end_dt
+        except ValueError as e:
+            self.logger.error(f"Error parsing time: {e}")
+            return False
+
+    def find_available_rooms(self, day: str, time: str, year="2025", term="1", campus="NB", search: str = "") -> List[Dict]:
+        """
+        Find rooms that are available at a specific day and time.
+        
+        Parameters:
+        - day: Day of the week (Monday, Tuesday, etc.)
+        - time: Time to check availability (e.g., '10:00 AM')
+        - year, term, campus: Academic period parameters
+        - search: Optional search query to filter rooms
+        
+        Returns a list of available rooms with their details.
+        """
+        # Get all rooms (optionally filtered by search query)
+        all_rooms = self.search_rooms(search, year, term, campus)
+        available_rooms = []
+        
+        # Get all course data for scheduling analysis
+        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
+        
+        for room_info in all_rooms:
+            building = room_info['building']
+            room = room_info['room']
+            
+            # Assume room is available until proven otherwise
+            is_available = True
+            
+            # Check all courses for this room
+            for course in courses:
+                for section in course.get('sections', []):
+                    for meeting_time in section.get('meeting_times', []):
+                        # Skip if not this room or day
+                        if (meeting_time.get('building') != building or 
+                            meeting_time.get('room') != room or
+                            meeting_time.get('day') != day):
+                            continue
+                        
+                        # Check if our target time falls within this class's time range
+                        start_time = meeting_time.get('start_time', {}).get('formatted', 'TBA')
+                        end_time = meeting_time.get('end_time', {}).get('formatted', 'TBA')
+                        
+                        if self._is_time_in_range(time, start_time, end_time):
+                            is_available = False
+                            break
+                    
+                    if not is_available:
+                        break
+                
+                if not is_available:
+                    break
+            
+            # If still available after checking all courses, add to our list
+            if is_available:
+                # Add availability info to the room object
+                room_with_availability = room_info.copy()
+                room_with_availability['is_available'] = True
+                room_with_availability['checked_day'] = day
+                room_with_availability['checked_time'] = time
+                available_rooms.append(room_with_availability)
+        
+        return available_rooms
 
     def get_room_schedule(self, building: str, room: str, year="2025", term="1", campus="NB") -> Dict:
         """

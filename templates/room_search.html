@@ -89,7 +89,7 @@
                     <div id="availabilityFilters" class="collapse">
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-12 mb-3">
                                     <label for="dayFilter" class="form-label">Day</label>
                                     <select class="form-select" id="dayFilter">
                                         <option value="">Select Day</option>
@@ -102,58 +102,25 @@
                                         <option value="Sunday">Sunday</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="campusFilter" class="form-label">Campus</label>
-                                    <select class="form-select" id="campusFilter">
-                                        <option value="">All Campuses</option>
-                                        <option value="1">College Ave</option>
-                                        <option value="2">Busch</option>
-                                        <option value="3">Livingston</option>
-                                        <option value="4">Cook/Doug</option>
-                                    </select>
-                                </div>
                             </div>
                             
                             <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="startTimeFilter" class="form-label">Start Time</label>
-                                    <select class="form-select" id="startTimeFilter">
-                                        <option value="">Select Start Time</option>
-                                        <option value="8:00 AM">8:00 AM</option>
-                                        <option value="9:00 AM">9:00 AM</option>
-                                        <option value="10:00 AM">10:00 AM</option>
-                                        <option value="11:00 AM">11:00 AM</option>
-                                        <option value="12:00 PM">12:00 PM</option>
-                                        <option value="1:00 PM">1:00 PM</option>
-                                        <option value="2:00 PM">2:00 PM</option>
-                                        <option value="3:00 PM">3:00 PM</option>
-                                        <option value="4:00 PM">4:00 PM</option>
-                                        <option value="5:00 PM">5:00 PM</option>
-                                        <option value="6:00 PM">6:00 PM</option>
-                                        <option value="7:00 PM">7:00 PM</option>
-                                        <option value="8:00 PM">8:00 PM</option>
-                                    </select>
+                                <div class="col-12 mb-3">
+                                    <label for="timeRangeSlider" class="form-label">Time Range: <span id="timeRangeDisplay">8:00 AM - 9:40 AM</span></label>
+                                    <div class="mt-1">
+                                        <input type="range" class="form-range" id="timeRangeSlider" min="0" max="15" value="0">
+                                    </div>
+                                    <div class="d-flex justify-content-between small text-muted">
+                                        <span>8 AM</span>
+                                        <span>12 PM</span>
+                                        <span>4 PM</span>
+                                        <span>10 PM</span>
+                                    </div>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="endTimeFilter" class="form-label">End Time</label>
-                                    <select class="form-select" id="endTimeFilter">
-                                        <option value="">Select End Time</option>
-                                        <option value="9:00 AM">9:00 AM</option>
-                                        <option value="10:00 AM">10:00 AM</option>
-                                        <option value="11:00 AM">11:00 AM</option>
-                                        <option value="12:00 PM">12:00 PM</option>
-                                        <option value="1:00 PM">1:00 PM</option>
-                                        <option value="2:00 PM">2:00 PM</option>
-                                        <option value="3:00 PM">3:00 PM</option>
-                                        <option value="4:00 PM">4:00 PM</option>
-                                        <option value="5:00 PM">5:00 PM</option>
-                                        <option value="6:00 PM">6:00 PM</option>
-                                        <option value="7:00 PM">7:00 PM</option>
-                                        <option value="8:00 PM">8:00 PM</option>
-                                        <option value="9:00 PM">9:00 PM</option>
-                                        <option value="10:00 PM">10:00 PM</option>
-                                    </select>
-                                </div>
+                                
+                                <!-- Hidden inputs to store actual time values -->
+                                <input type="hidden" id="startTimeFilter" value="8:00 AM">
+                                <input type="hidden" id="endTimeFilter" value="9:40 AM">
                             </div>
                             
                             <div class="filter-message alert alert-info d-none" id="filterMessage">
@@ -195,12 +162,53 @@
         // Set up event handlers for the filter controls
         const filterAvailableCheckbox = document.getElementById('filterAvailable');
         const dayFilter = document.getElementById('dayFilter');
-        const campusFilter = document.getElementById('campusFilter');
         const startTimeFilter = document.getElementById('startTimeFilter');
         const endTimeFilter = document.getElementById('endTimeFilter');
+        const timeRangeSlider = document.getElementById('timeRangeSlider');
+        const timeRangeDisplay = document.getElementById('timeRangeDisplay');
         const filterMessage = document.getElementById('filterMessage');
         const availabilityFilters = document.getElementById('availabilityFilters');
         const filterChevron = document.getElementById('filterChevron');
+        
+        // Define class periods that align with university schedule
+        const classPeriods = [
+            { period: 1, startTime: "8:00 AM", endTime: "9:40 AM" },
+            { period: 2, startTime: "9:50 AM", endTime: "11:30 AM" },
+            { period: 3, startTime: "11:40 AM", endTime: "1:20 PM" },
+            { period: 4, startTime: "1:30 PM", endTime: "3:10 PM" },
+            { period: 5, startTime: "3:20 PM", endTime: "5:00 PM" },
+            { period: 6, startTime: "5:10 PM", endTime: "6:50 PM" },
+            { period: 7, startTime: "7:00 PM", endTime: "8:40 PM" },
+            { period: 8, startTime: "8:50 PM", endTime: "10:30 PM" },
+            // Shorter class periods
+            { period: 9, startTime: "8:00 AM", endTime: "9:20 AM" },
+            { period: 10, startTime: "9:30 AM", endTime: "10:50 AM" },
+            { period: 11, startTime: "11:00 AM", endTime: "12:20 PM" },
+            { period: 12, startTime: "12:30 PM", endTime: "1:50 PM" },
+            { period: 13, startTime: "2:00 PM", endTime: "3:20 PM" },
+            { period: 14, startTime: "3:30 PM", endTime: "4:50 PM" },
+            { period: 15, startTime: "5:00 PM", endTime: "6:20 PM" },
+            { period: 16, startTime: "6:30 PM", endTime: "7:50 PM" }
+        ];
+        
+        // Update time range when slider changes
+        timeRangeSlider.addEventListener('input', updateTimeRangeFromSlider);
+        
+        // Initialize with the first period
+        updateTimeRangeFromSlider();
+        
+        function updateTimeRangeFromSlider() {
+            const selectedPeriodIndex = parseInt(timeRangeSlider.value);
+            const selectedPeriod = classPeriods[selectedPeriodIndex];
+            
+            // Update display and hidden form values
+            timeRangeDisplay.textContent = `${selectedPeriod.startTime} - ${selectedPeriod.endTime}`;
+            startTimeFilter.value = selectedPeriod.startTime;
+            endTimeFilter.value = selectedPeriod.endTime;
+            
+            // Update filter message
+            updateFilterMessage();
+        }
         
         // Toggle the availability filters when checkbox is clicked
         filterAvailableCheckbox.addEventListener('change', () => {
@@ -220,48 +228,14 @@
             }
         });
         
-        // Update filter message when selections change
+        // Update filter message when day selection changes
         dayFilter.addEventListener('change', updateFilterMessage);
-        startTimeFilter.addEventListener('change', updateFilterMessage);
-        endTimeFilter.addEventListener('change', updateFilterMessage);
-        
-        // Validate that end time is after start time when either changes
-        startTimeFilter.addEventListener('change', validateTimeRange);
-        endTimeFilter.addEventListener('change', validateTimeRange);
-        
-        function validateTimeRange() {
-            if (!startTimeFilter.value || !endTimeFilter.value) return;
-            
-            const startTime = new Date(`01/01/2025 ${startTimeFilter.value}`);
-            const endTime = new Date(`01/01/2025 ${endTimeFilter.value}`);
-            
-            if (startTime >= endTime) {
-                // If start time is not before end time, set end time to one hour after start time
-                let newEndTime = new Date(startTime);
-                newEndTime.setHours(startTime.getHours() + 1);
-                
-                // Convert back to string format like "1:00 PM"
-                const hours = newEndTime.getHours() % 12 || 12;
-                const ampm = newEndTime.getHours() >= 12 ? 'PM' : 'AM';
-                const formattedTime = `${hours}:00 ${ampm}`;
-                
-                // Find and select that option
-                for (let i = 0; i < endTimeFilter.options.length; i++) {
-                    if (endTimeFilter.options[i].value === formattedTime) {
-                        endTimeFilter.selectedIndex = i;
-                        break;
-                    }
-                }
-            }
-            
-            updateFilterMessage();
-        }
         
         function updateFilterMessage() {
             if (filterAvailableCheckbox.checked) {
-                if (!dayFilter.value || !startTimeFilter.value || !endTimeFilter.value) {
+                if (!dayFilter.value) {
                     filterMessage.classList.remove('d-none');
-                    filterMessage.textContent = 'Select day and time range to filter for available rooms';
+                    filterMessage.textContent = 'Select a day to filter for available rooms';
                 } else {
                     filterMessage.classList.add('d-none');
                 }
@@ -287,11 +261,6 @@
                 campus: '{{ campus }}',
                 search: search
             });
-            
-            // Add campus filter if selected
-            if (campusFilter.value) {
-                params.append('campus_filter', campusFilter.value);
-            }
             
             // Add availability filters if enabled
             if (filterAvailableCheckbox.checked && dayFilter.value && 
@@ -323,12 +292,7 @@
                     summaryParts.push(`rooms available on ${dayFilter.value} from ${startTimeFilter.value} to ${endTimeFilter.value}`);
                 }
                 
-                // Check if campus filter is applied
-                if (campusFilter.value) {
-                    filtersApplied = true;
-                    const campusName = campusFilter.options[campusFilter.selectedIndex].text;
-                    summaryParts.push(`on ${campusName} campus`);
-                }
+                // Campus filter has been removed as requested
                 
                 // If search was also applied, add it to the summary
                 if (search) {
@@ -449,9 +413,9 @@
             // Reset filter UI
             filterAvailableCheckbox.checked = false;
             dayFilter.value = '';
-            startTimeFilter.value = '';
-            endTimeFilter.value = '';
-            campusFilter.value = '';
+            // Reset time range slider to first period
+            timeRangeSlider.value = 0;
+            updateTimeRangeFromSlider();
             
             // Hide filter summary and message
             document.getElementById('filterSummary').classList.add('d-none');

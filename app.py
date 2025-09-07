@@ -171,7 +171,26 @@ def get_rooms():
         day = request.args.get('day', '')
         start_time = request.args.get('start_time', '')
         end_time = request.args.get('end_time', '')
-        campus_filter = request.args.get('campus_filter', '')
+        
+        # Get building type filters
+        building_types = []
+        if request.args.get('type_classroom', '').lower() == 'true':
+            building_types.append('classroom')
+        if request.args.get('type_lecture', '').lower() == 'true':
+            building_types.append('lecture')
+        if request.args.get('type_lab', '').lower() == 'true':
+            building_types.append('lab')
+        
+        # Get campus filters
+        campus_filters = []
+        if request.args.get('campus_college_ave', '').lower() == 'true':
+            campus_filters.append('College Ave')
+        if request.args.get('campus_busch', '').lower() == 'true':
+            campus_filters.append('Busch')
+        if request.args.get('campus_livingston', '').lower() == 'true':
+            campus_filters.append('Livingston')
+        if request.args.get('campus_cook_doug', '').lower() == 'true':
+            campus_filters.append('Cook/Doug')
         
         if filter_available and day and start_time and end_time:
             # Filter rooms by availability in time range
@@ -183,23 +202,26 @@ def get_rooms():
                 year=year, 
                 term=term, 
                 campus=campus,
-                campus_filter=campus_filter,
                 search=search
             )
         else:
-            # Regular room search without availability filtering
-            rooms = room_fetcher.search_rooms(search, year=year, term=term, campus=campus)
-            
-            # Apply campus filter if specified (for basic search without time filtering)
-            if campus_filter and hasattr(room_fetcher, '_filter_by_campus'):
-                rooms = room_fetcher._filter_by_campus(rooms, campus_filter)
+            # Regular room search with filters
+            rooms = room_fetcher.search_rooms(
+                search, 
+                year=year, 
+                term=term, 
+                campus=campus,
+                building_types=building_types if building_types else None,
+                campus_filters=campus_filters if campus_filters else None
+            )
         
         return jsonify({
             "status": "success",
             "data": rooms,
             "count": len(rooms),
             "filter_applied": filter_available and day and start_time and end_time,
-            "campus_filter_applied": bool(campus_filter),
+            "building_types_filtered": bool(building_types),
+            "campus_filtered": bool(campus_filters),
             "last_update": course_fetcher.last_update
         })
     except Exception as e:

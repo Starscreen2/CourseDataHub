@@ -72,7 +72,67 @@
         <div class="search-form">
             <form id="roomSearchForm">
                 <div class="form-group mb-3">
-                    <input type="text" class="form-control" id="search" placeholder="Search rooms (e.g., ARC 103, Hill 114, Beck Hall)">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="search" 
+                               placeholder="Search rooms (e.g., ARC 103, Hill 114, Beck Hall)"
+                               autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div id="searchSuggestions" class="list-group position-absolute" style="z-index: 1000; width: 100%; display: none;"></div>
+                </div>
+                
+                <!-- Search Filters -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light" data-bs-toggle="collapse" data-bs-target="#searchFilters" aria-expanded="false" style="cursor: pointer;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="bi bi-funnel me-2"></i>Search Filters
+                            </h6>
+                            <i class="bi bi-chevron-down" id="searchFiltersChevron"></i>
+                        </div>
+                    </div>
+                    <div id="searchFilters" class="collapse">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Building Type</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="classroom" id="typeClassroom" checked>
+                                        <label class="form-check-label" for="typeClassroom">Classrooms</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="lecture" id="typeLecture" checked>
+                                        <label class="form-check-label" for="typeLecture">Lecture Halls</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="lab" id="typeLab" checked>
+                                        <label class="form-check-label" for="typeLab">Labs</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Campus</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="college_ave" id="campusCollegeAve" checked>
+                                        <label class="form-check-label" for="campusCollegeAve">College Ave</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="busch" id="campusBusch" checked>
+                                        <label class="form-check-label" for="campusBusch">Busch</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="livingston" id="campusLivingston" checked>
+                                        <label class="form-check-label" for="campusLivingston">Livingston</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="cook_doug" id="campusCookDoug" checked>
+                                        <label class="form-check-label" for="campusCookDoug">Cook/Doug</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Availability Filters -->
@@ -408,31 +468,76 @@
                                     </div>
                                 `;
                             }
-                            
+
+                            // Add course-related information if available
+                            let courseInfo = '';
+                            if (room.courses && room.courses.length > 0) {
+                                courseInfo = `
+                                    <div class="mt-2">
+                                        <small class="text-muted">Related courses:</small>
+                                        <ul class="list-unstyled mb-0">
+                                            ${room.courses.map(course => `
+                                                <li class="mb-2">
+                                                    <small>
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <i class="bi bi-book me-1"></i>
+                                                            <strong>${course.code}: ${course.title}</strong>
+                                                        </div>
+                                                        <div class="ms-4">
+                                                            ${course.school ? `
+                                                                <div class="mb-1">
+                                                                    <i class="bi bi-building me-1"></i>
+                                                                    <span class="text-muted">School:</span> ${course.school}
+                                                                </div>
+                                                            ` : ''}
+                                                            ${course.campus ? `
+                                                                <div class="mb-1">
+                                                                    <i class="bi bi-geo-alt me-1"></i>
+                                                                    <span class="text-muted">Campus:</span> ${course.campus}
+                                                                </div>
+                                                            ` : ''}
+                                                            ${course.prerequisites ? `
+                                                                <div class="mb-1">
+                                                                    <i class="bi bi-list-check me-1"></i>
+                                                                    <span class="text-muted">Prerequisites:</span> ${course.prerequisites}
+                                                                </div>
+                                                            ` : ''}
+                                                            ${course.coreCodes && course.coreCodes.length > 0 ? `
+                                                                <div class="mb-1">
+                                                                    <i class="bi bi-tag me-1"></i>
+                                                                    <span class="text-muted">Core Codes:</span>
+                                                                    ${course.coreCodes.map(code => `
+                                                                        <span class="badge bg-secondary me-1">${code}</span>
+                                                                    `).join('')}
+                                                                </div>
+                                                            ` : ''}
+                                                        </div>
+                                                    </small>
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    </div>
+                                `;
+                            }
+
                             resultsHTML += `
-                                <div class="col-md-4 col-sm-6 mb-3">
-                                    <div class="card h-100 ${isAvailabilityFiltered ? 'border-success' : ''}">
-                                        <div class="card-body d-flex flex-column">
-                                            <h6 class="card-title">
-                                                <a href="https://www.google.com/search?q=${encodeURIComponent(room.full_name + ' Rutgers')}" 
-                                                   target="_blank" 
-                                                   class="text-primary" 
-                                                   title="Search for this room on Google">
-                                                    ${room.full_name}
-                                                    <i class="bi bi-search ms-1 small"></i>
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">
+                                                <a href="/room-details?year={{ year }}&term={{ term }}&campus={{ campus }}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
+                                                   class="text-decoration-none">
+                                                    ${room.building} ${room.room}
                                                 </a>
-                                            </h6>
-                                            <p class="card-text mb-1">
-                                                <strong>Building:</strong> ${room.building_name || room.building}
-                                            </p>
-                                            <p class="card-text mb-1">
-                                                <strong>Room:</strong> ${room.room}
-                                            </p>
+                                            </h5>
                                             ${availabilityBadge}
-                                            <div class="mt-auto pt-2">
-                                                <a href="/room-details?year=${encodeURIComponent('{{ year }}')}&term=${encodeURIComponent('{{ term }}')}&campus=${encodeURIComponent('{{ campus }}')}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
-                                                   class="btn btn-sm btn-primary w-100">
-                                                   <i class="bi bi-calendar-week me-1"></i> View Schedule
+                                            ${courseInfo}
+                                            <div class="mt-2">
+                                                <a href="https://www.google.com/maps/search/?api=1&query=${room.latitude},${room.longitude}" 
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-geo-alt me-1"></i>
+                                                    View on Map
                                                 </a>
                                             </div>
                                         </div>
@@ -513,6 +618,136 @@
                         icon.classList.add('bi-chevron-down');
                     }
                 }
+            }
+        });
+
+        // Search Autocomplete
+        const searchInput = document.getElementById('search');
+        const searchSuggestions = document.getElementById('searchSuggestions');
+        const clearSearchBtn = document.getElementById('clearSearch');
+        let searchTimeout = null;
+        let allBuildings = new Set();
+        let allRooms = new Set();
+
+        // Function to update suggestions
+        function updateSuggestions(query) {
+            if (!query) {
+                searchSuggestions.style.display = 'none';
+                return;
+            }
+
+            query = query.toLowerCase();
+            const suggestions = [];
+
+            // Add building matches
+            allBuildings.forEach(building => {
+                if (building.toLowerCase().includes(query)) {
+                    suggestions.push({
+                        type: 'building',
+                        text: building,
+                        display: `<i class="bi bi-building me-2"></i>${building}`
+                    });
+                }
+            });
+
+            // Add room matches
+            allRooms.forEach(room => {
+                if (room.toLowerCase().includes(query)) {
+                    suggestions.push({
+                        type: 'room',
+                        text: room,
+                        display: `<i class="bi bi-door-open me-2"></i>${room}`
+                    });
+                }
+            });
+
+            // Display suggestions
+            if (suggestions.length > 0) {
+                searchSuggestions.innerHTML = suggestions
+                    .slice(0, 5)
+                    .map(suggestion => `
+                        <a href="#" class="list-group-item list-group-item-action" 
+                           data-type="${suggestion.type}" 
+                           data-text="${suggestion.text}">
+                            ${suggestion.display}
+                        </a>
+                    `)
+                    .join('');
+                searchSuggestions.style.display = 'block';
+            } else {
+                searchSuggestions.style.display = 'none';
+            }
+        }
+
+        // Handle search input
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value;
+            
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+
+            // Set new timeout for debouncing
+            searchTimeout = setTimeout(() => {
+                updateSuggestions(query);
+            }, 200);
+        });
+
+        // Handle suggestion clicks
+        searchSuggestions.addEventListener('click', (e) => {
+            e.preventDefault();
+            const item = e.target.closest('.list-group-item');
+            if (item) {
+                searchInput.value = item.dataset.text;
+                searchSuggestions.style.display = 'none';
+                // Trigger search
+                document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Clear search
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            searchSuggestions.style.display = 'none';
+            document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+                searchSuggestions.style.display = 'none';
+            }
+        });
+
+        // Update building and room sets when data is loaded
+        function updateSearchData(rooms) {
+            allBuildings.clear();
+            allRooms.clear();
+            
+            rooms.forEach(room => {
+                if (room.building) allBuildings.add(room.building);
+                if (room.building_name) allBuildings.add(room.building_name);
+                if (room.full_name) allRooms.add(room.full_name);
+            });
+        }
+
+        // Modify the existing form submission handler
+        document.getElementById('roomSearchForm').addEventListener('submit', async (e) => {
+            // ... existing code ...
+
+            try {
+                const response = await fetch(`/api/rooms?${params}`);
+                const data = await response.json();
+
+                // Update search data
+                if (data.status === 'success') {
+                    updateSearchData(data.data);
+                }
+
+                // ... rest of existing code ...
+            } catch (error) {
+                // ... existing error handling ...
             }
         });
     </script>

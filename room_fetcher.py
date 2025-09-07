@@ -4,6 +4,22 @@ from typing import Dict, List, Optional
 from course_fetcher import CourseFetcher
 from rapidfuzz import fuzz, process
 
+# Rutgers building coordinates (you can expand this dictionary)
+BUILDING_COORDINATES = {
+    'ARC': {'lat': 40.5008, 'lng': -74.4474},  # Academic Resource Center
+    'HILL': {'lat': 40.5009, 'lng': -74.4475},  # Hill Center
+    'BECK': {'lat': 40.5010, 'lng': -74.4476},  # Beck Hall
+    # Add more buildings as needed
+}
+
+# Building type mappings
+BUILDING_TYPES = {
+    'ARC': 'classroom',
+    'HILL': 'lecture',
+    'BECK': 'classroom',
+    # Add more mappings as needed
+}
+
 class RoomFetcher:
     """
     A class to search, filter, and retrieve room information and availability
@@ -15,6 +31,20 @@ class RoomFetcher:
         self.course_fetcher = course_fetcher
         self.logger = logging.getLogger(__name__)
 
+    def _get_room_coordinates(self, building: str) -> Optional[Dict[str, float]]:
+        """
+        Get the coordinates for a building.
+        Returns None if coordinates are not available.
+        """
+        return BUILDING_COORDINATES.get(building.upper())
+
+    def _get_building_type(self, building: str) -> str:
+        """
+        Get the type of building (classroom, lecture hall, lab, etc.).
+        Returns 'unknown' if type is not specified.
+        """
+        return BUILDING_TYPES.get(building.upper(), 'unknown')
+
     def _extract_rooms_from_courses(self, courses: List[Dict]) -> List[Dict]:
         """
         Extract and deduplicate room information from course data.
@@ -23,82 +53,34 @@ class RoomFetcher:
         rooms = {}
         
         for course in courses:
-            course_campus_code = course.get('campusCode', '')
-            
             for section in course.get('sections', []):
-                section_campus_code = section.get('campusCode', '')
-                
                 for meeting_time in section.get('meeting_times', []):
-                    # Skip online or missing location courses
-                    if not meeting_time.get('building') or not meeting_time.get('room'):
-                        continue
-                    
                     building = meeting_time.get('building', '')
-                    room_number = meeting_time.get('room', '')
+                    room = meeting_time.get('room', '')
                     
-                    # Try to get campus information from multiple possible sources
-                    campus_info = None
-                    campus_name = None
-                    
-                    # First try meeting time specific campus data
-                    campus_location = meeting_time.get('campusLocation', '')
-                    campus_code = meeting_time.get('campus', '')
-                    campus_name = meeting_time.get('campusName', '')
-                    campus_abbrev = meeting_time.get('campusAbbrev', '')
-                    
-                    if campus_code:
-                        campus_info = campus_code
-                    elif campus_location:
-                        campus_info = campus_location
-                    elif campus_abbrev and campus_abbrev != '**': # Avoid invalid campus code
-                        campus_info = campus_abbrev
-                    elif section_campus_code:
-                        campus_info = section_campus_code
-                    elif course_campus_code:
-                        campus_info = course_campus_code
-                    
-                    # Create unique key for room
-                    room_key = f"{building}_{room_number}"
-                    
-                    # Map numeric campus codes to their names
-                    campus_code_map = {
-                        "1": "College Ave",
-                        "2": "Busch",
-                        "3": "Livingston", 
-                        "4": "Cook/Doug"
-                    }
-                    
-                    if campus_info in campus_code_map:
-                        campus_name = campus_code_map[campus_info]
-                    elif not campus_name:
-                        # If we don't have a name but have a code, do a rough conversion
-                        # This will help with campus filtering
-                        if campus_info == 'CA':
-                            campus_name = "College Ave"
-                        elif campus_info == 'BU':
-                            campus_name = "Busch"
-                        elif campus_info == 'LIV':
-                            campus_name = "Livingston"
-                        elif campus_info == 'CD':
-                            campus_name = "Cook/Doug"
+                    if not building or not room:
+                        continue
+                        
+                    room_key = f"{building}_{room}"
                     
                     if room_key not in rooms:
+                        # Get building coordinates and type
+                        coordinates = self._get_room_coordinates(building)
+                        building_type = self._get_building_type(building)
+                        
                         rooms[room_key] = {
                             'building': building,
-                            'room': room_number,
-                            'campus': campus_info,
-                            'campus_name': campus_name,
-                            'full_name': f"{building} {room_number}",
-                            'building_name': meeting_time.get('buildingName', building),
+                            'room': room,
+                            'full_name': f"{building} {room}",
+                            'building_name': meeting_time.get('building_name', ''),
+                            'campus': meeting_time.get('campus', ''),
+                            'campus_name': meeting_time.get('campus_name', ''),
+                            'latitude': coordinates['lat'] if coordinates else None,
+                            'longitude': coordinates['lng'] if coordinates else None,
+                            'building_type': building_type
                         }
         
-        # Log a few sample rooms for debugging
-        room_values = list(rooms.values())
-        if room_values and len(room_values) > 0:
-            for i in range(min(3, len(room_values))):
-                self.logger.debug(f"Extracted room {i}: {room_values[i]}")
-                
-        return room_values
+        return list(rooms.values())
 
     def get_all_rooms(self, year="2025", term="1", campus="NB") -> List[Dict]:
         """
@@ -107,15 +89,50 @@ class RoomFetcher:
         courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
         return self._extract_rooms_from_courses(courses)
 
-    def search_rooms(self, query: str, year="2025", term="1", campus="NB") -> List[Dict]:
+    def search_rooms(self, query: str, year="2025", term="1", campus="NB", 
+                    building_types: List[str] = None, campus_filters: List[str] = None) -> List[Dict]:
         """
-        Search for rooms matching the given query using fuzzy matching.
-        Enhanced to better handle full room names and building names.
+        Search for rooms matching the given query using fuzzy matching and semantic search.
+        Enhanced to better handle full room names, building names, and course-related searches.
+        Includes search by school, campus location, prerequisites, and core codes.
         """
         all_rooms = self.get_all_rooms(year, term, campus)
         
+        # Apply building type filters
+        if building_types:
+            all_rooms = [room for room in all_rooms if room.get('building_type') in building_types]
+        
+        # Apply campus filters
+        if campus_filters:
+            all_rooms = [room for room in all_rooms if room.get('campus_name') in campus_filters]
+        
         if not query:
             return all_rooms
+        
+        # Get all courses for semantic search
+        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
+        
+        # Create a mapping of rooms to their associated courses with enhanced information
+        room_courses = {}
+        for course in courses:
+            for section in course.get('sections', []):
+                for meeting_time in section.get('meeting_times', []):
+                    building = meeting_time.get('building')
+                    room = meeting_time.get('room')
+                    if building and room:
+                        room_key = f"{building}_{room}"
+                        if room_key not in room_courses:
+                            room_courses[room_key] = []
+                        room_courses[room_key].append({
+                            'title': course.get('title', ''),
+                            'description': course.get('description', ''),
+                            'courseString': course.get('courseString', ''),
+                            'school': course.get('school', ''),
+                            'prerequisites': course.get('prerequisites', ''),
+                            'coreCodes': course.get('coreCodes', []),
+                            'campus': meeting_time.get('campus', ''),
+                            'campus_name': meeting_time.get('campus_name', '')
+                        })
         
         # Prepare search fields and weights
         search_fields = [
@@ -146,12 +163,13 @@ class RoomFetcher:
         if direct_matches:
             return direct_matches
             
-        # Otherwise, proceed with fuzzy matching
+        # Otherwise, proceed with fuzzy matching and semantic search
         scored_rooms = []
         
         for room in all_rooms:
             max_score = 0
             
+            # Basic fuzzy matching on room fields
             for field, weight in search_fields:
                 if field in room:
                     # Normalize to string for fuzzy matching
@@ -170,8 +188,56 @@ class RoomFetcher:
                     weighted_score = (field_score * weight) / 100
                     max_score = max(max_score, weighted_score)
             
+            # Semantic search through associated courses
+            room_key = f"{room.get('building', '')}_{room.get('room', '')}"
+            if room_key in room_courses:
+                for course_info in room_courses[room_key]:
+                    # Search in course title and description
+                    title_score = fuzz.token_set_ratio(query_lower, course_info['title'].lower())
+                    desc_score = fuzz.token_set_ratio(query_lower, course_info['description'].lower())
+                    
+                    # Search in school
+                    school_score = fuzz.token_set_ratio(query_lower, course_info['school'].lower())
+                    
+                    # Search in prerequisites
+                    prereq_score = fuzz.token_set_ratio(query_lower, course_info['prerequisites'].lower())
+                    
+                    # Search in core codes
+                    core_codes_score = 0
+                    if course_info['coreCodes']:
+                        core_codes_text = ' '.join(course_info['coreCodes']).lower()
+                        core_codes_score = fuzz.token_set_ratio(query_lower, core_codes_text)
+                    
+                    # Search in campus location
+                    campus_score = fuzz.token_set_ratio(query_lower, course_info['campus_name'].lower())
+                    
+                    # Add course-related information to the room
+                    if any(score > 50 for score in [title_score, desc_score, school_score, prereq_score, core_codes_score, campus_score]):
+                        if 'courses' not in room:
+                            room['courses'] = []
+                        room['courses'].append({
+                            'title': course_info['title'],
+                            'code': course_info['courseString'],
+                            'school': course_info['school'],
+                            'prerequisites': course_info['prerequisites'],
+                            'coreCodes': course_info['coreCodes'],
+                            'campus': course_info['campus_name']
+                        })
+                    
+                    # Add semantic scores to overall score
+                    semantic_scores = [
+                        title_score * 0.8,      # Weight title matches
+                        desc_score * 0.7,       # Weight description matches
+                        school_score * 0.9,     # Weight school matches highly
+                        prereq_score * 0.6,     # Weight prerequisite matches
+                        core_codes_score * 0.8, # Weight core code matches
+                        campus_score * 0.9      # Weight campus matches highly
+                    ]
+                    semantic_score = max(semantic_scores)
+                    max_score = max(max_score, semantic_score)
+            
             # Only include rooms that meet the threshold
-            if max_score >= 50:  # Slightly lower threshold to catch more potential matches
+            if max_score >= 40:  # Lower threshold to catch more potential matches
                 scored_rooms.append((room, max_score))
         
         # Sort by score descending

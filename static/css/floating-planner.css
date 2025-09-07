@@ -1,0 +1,999 @@
+/* Floating Course Planner Styles */
+
+/* Floating Button */
+.floating-planner {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease-in-out;
+}
+
+.floating-button-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.floating-button {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #CC0033, #A30029);
+    border: none;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    box-shadow: 0 4px 12px rgba(204, 0, 51, 0.3);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.floating-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(204, 0, 51, 0.4);
+}
+
+.floating-button:active {
+    transform: scale(0.95);
+}
+
+.floating-button i {
+    font-size: 20px;
+}
+
+.button-text {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Course Count Badge */
+.course-count-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #CC0033;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+    box-shadow: 0 2px 8px rgba(204, 0, 51, 0.3);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Tooltip */
+.floating-tooltip {
+    position: absolute;
+    right: 64px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1001;
+}
+
+.floating-tooltip::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid #1f2937;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+}
+
+.floating-button-container:hover .floating-tooltip {
+    opacity: 1;
+}
+
+/* Planner Popup */
+.planner-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.planner-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.planner-content {
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 1200px;
+    max-height: 95vh;
+    overflow: hidden;
+    animation: slideInUp 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Planner Header */
+.planner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px 24px;
+    background: linear-gradient(135deg, #cc0000 0%, #e60000 100%);
+    border-bottom: 1px solid #b30000;
+    color: white;
+}
+
+.planner-title h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    line-height: 1.2;
+}
+
+.planner-title p {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+}
+
+.planner-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Planner Controls */
+.planner-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.controls-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.term-selection {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.term-selection .form-select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+}
+
+.schedule-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.schedule-info span {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* View Toggle */
+.view-toggle {
+    display: flex;
+    background: white;
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.view-btn {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+.view-btn.active {
+    background: #cc0000;
+    color: white;
+}
+
+.view-btn:hover:not(.active) {
+    background: #f9fafb;
+    color: #374151;
+}
+
+/* Campus Legend */
+.campus-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 24px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.legend-label {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.campus-colors {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.campus-color-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.campus-color-item span {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* Planner Body */
+.planner-body {
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+/* Calendar View */
+.calendar-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    margin: 0 16px 16px 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    max-height: 80vh;
+}
+
+.weekly-calendar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-header {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    background: #f8fafc;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.time-column {
+    padding: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 12px;
+    text-align: center;
+}
+
+.day-header {
+    padding: 12px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+    text-align: center;
+    border-left: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.calendar-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 60vh;
+    min-height: 500px;
+    padding-bottom: 200px;
+}
+
+.calendar-row {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    min-height: 45px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.time-label {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border-right: 1px solid #e5e7eb;
+}
+
+.day-cell {
+    border-left: 1px solid #e5e7eb;
+    position: relative;
+    min-height: 60px;
+    padding: 4px;
+}
+
+.course-block {
+    background: #cc0000;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 2px;
+    box-shadow: 0 4px 8px rgba(204, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.course-block-closed {
+    background: #6c757d !important;
+    opacity: 0.6;
+    position: relative;
+}
+
+.course-block-closed::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.1) 2px,
+        rgba(255, 255, 255, 0.1) 4px
+    );
+}
+
+.course-block:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.course-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+}
+
+.course-time {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+.course-location {
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 400;
+}
+
+.course-section {
+    font-size: 9px;
+    opacity: 0.7;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+/* List View */
+.list-view {
+    flex: 1;
+    padding: 32px;
+    overflow-y: auto;
+    background: #f8f9fa;
+}
+
+/* Planner Footer */
+.planner-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    gap: 12px;
+}
+
+.planner-footer .btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.planner-footer .btn-primary {
+    background: #cc0000;
+    border-color: #cc0000;
+    color: white;
+}
+
+.planner-footer .btn-primary:hover {
+    background: #b30000;
+    border-color: #b30000;
+    color: white;
+}
+
+.planner-footer .btn-outline-danger {
+    color: #cc0000;
+    border-color: #cc0000;
+}
+
+.planner-footer .btn-outline-danger:hover {
+    background: #cc0000;
+    border-color: #cc0000;
+    color: white;
+}
+
+/* Remove button in list view */
+.course-header .btn-outline-danger {
+    color: #dc2626;
+    border-color: #fecaca;
+    background: #fef2f2;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.course-header .btn-outline-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Close button in planner header */
+.planner-header .btn-close {
+    color: white;
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    background-image: none;
+    position: relative;
+}
+
+.planner-header .btn-close::before {
+    content: "×";
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.planner-header .btn-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transform: scale(1.1);
+}
+
+.planner-header .btn-close:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    height: 400px;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.empty-icon i {
+    font-size: 40px;
+    color: #cc0000;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #cc0000;
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    color: #6b7280;
+    margin-bottom: 24px;
+    max-width: 400px;
+}
+
+/* Course List */
+.course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Quick Stats */
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+}
+
+.stat-icon i {
+    font-size: 20px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+/* Scheduled Courses */
+.scheduled-courses h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+}
+
+.courses-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.list-view .course-card {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-left: 4px solid #cc0000 !important;
+    border-radius: 6px !important;
+    padding: 16px !important;
+    margin-bottom: 12px !important;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+.list-view .course-card:hover {
+    border-left-color: #b30000 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+.list-view .course-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px !important;
+}
+
+.list-view .course-header h5 {
+    margin: 0 !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    flex: 1;
+    line-height: 1.4 !important;
+}
+
+.list-view .course-details p {
+    margin: 4px 0 !important;
+    font-size: 13px !important;
+    color: #6b7280 !important;
+    line-height: 1.3 !important;
+}
+
+.section-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.section-info .badge {
+    font-size: 10px;
+    padding: 3px 6px;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.meeting-times {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.meeting-times strong {
+    color: #374151;
+    font-weight: 600;
+}
+
+.meeting-times small {
+    display: block;
+    margin: 2px 0;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Add to Planner Button */
+.add-to-planner-btn {
+    margin-top: 12px;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.add-to-planner-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(204, 0, 0, 0.3);
+}
+
+.add-to-planner-btn:active {
+    transform: translateY(0);
+}
+
+/* Ensure the button doesn't interfere with existing section styling */
+.section-item .add-to-planner-btn {
+    border: 2px solid #cc0000;
+    background: transparent;
+    color: #cc0000;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(204, 0, 0, 0.2);
+}
+
+.section-item .add-to-planner-btn:hover {
+    background: #cc0000;
+    color: white;
+    border-color: #cc0000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(204, 0, 0, 0.3);
+}
+
+.section-item .add-to-planner-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(204, 0, 0, 0.2);
+}
+
+/* Make sure the button is properly spaced */
+.section-item .card-body {
+    position: relative;
+}
+
+.section-item .add-to-planner-btn {
+    margin-top: 16px;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .floating-planner {
+        bottom: 16px;
+        right: 16px;
+    }
+    
+    .floating-button {
+        width: 48px;
+        height: 48px;
+        font-size: 10px;
+    }
+    
+    .floating-button i {
+        font-size: 18px;
+    }
+    
+    .planner-content {
+        margin: 0;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+    
+    .planner-header {
+        padding: 20px;
+    }
+    
+    .planner-header h1 {
+        font-size: 24px;
+    }
+    
+    .planner-controls {
+        padding: 12px 20px;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .term-selection {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .schedule-info {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .view-toggle {
+        padding: 12px 20px;
+    }
+    
+    .campus-legend {
+        padding: 12px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .campus-colors {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .calendar-view {
+        margin: 0 20px 20px 20px;
+        max-height: 50vh;
+    }
+    
+    .calendar-grid {
+        max-height: 50vh;
+        min-height: 400px;
+    }
+    
+    .calendar-header {
+        grid-template-columns: 60px repeat(7, 1fr);
+    }
+    
+    .calendar-row {
+        grid-template-columns: 60px repeat(7, 1fr);
+    }
+    
+    .time-column {
+        padding: 8px;
+        font-size: 10px;
+    }
+    
+    .day-header {
+        padding: 8px;
+        font-size: 12px;
+    }
+    
+    .time-label {
+        padding: 6px 8px;
+        font-size: 10px;
+    }
+    
+    .course-block {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+    
+    .planner-footer {
+        padding: 12px 20px;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .planner-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .floating-tooltip {
+        display: none;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .planner-content {
+        background: #1f2937;
+        color: #f9fafb;
+    }
+    
+    .planner-header {
+        background: #1f2937;
+        border-bottom-color: #374151;
+    }
+    
+    .planner-title h2 {
+        color: #f9fafb;
+    }
+    
+    .planner-title p {
+        color: #9ca3af;
+    }
+    
+    .stat-card {
+        background: #374151;
+        border-color: #4b5563;
+    }
+    
+    .stat-value {
+        color: #f9fafb;
+    }
+    
+    .course-card {
+        background: #374151;
+        border-color: #4b5563;
+    }
+    
+    .course-header h5 {
+        color: #f9fafb;
+    }
+    
+    .course-details p {
+        color: #9ca3af;
+    }
+}
+
+/* Animation for course count badge */
+.course-count-badge {
+    animation: bounceIn 0.5s ease-out;
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}

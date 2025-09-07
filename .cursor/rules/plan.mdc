@@ -1,0 +1,788 @@
+---
+description: Look here, because this is where all of the rutgers data is at
+alwaysApply: false
+---
+School/Unit:
+
+01 - School of Arts & Sciences
+03 - Military Science
+04 - School of Communication & Info (U)
+05 - Graduate School of Education (U)
+07 - Mason Gross School of the Arts (U)
+09 - School of Social Work (U)
+10 - Bloustein School of Planning (U)
+11 - School of Environmental & Biological Sci
+13 - Grad School of Applied & Prof Psych (U)
+14 - School of Engineering
+30 - Ernest Mario School of Pharmacy (U)
+33 - Rutgers Business School- NB campus (U)
+37 - School of Management & Labor Rel (U)
+77 - School of Nursing - New Brunswick (U)
+
+Core Codes:
+
+Non-Core: Community Engagement (CE)
+Philosophical and Theoretical Issues (AHo)
+Arts and Literatures (AHp)
+Nature of Languages (AHq)
+Critical Creative Expression (AHr)
+Diversities and Social Inequalities (CCD)
+Our Common Future (CCO)
+Historical Analysis (HST)
+Natural Sciences (NS)
+Quantitative Information (QQ)
+Mathematical or Formal Reasoning (QR)
+Writing and Communication 01:355:101 (WC)
+Writing and Communication, Revision (WCr)
+Writing and Communication in a Discipline (WCd)
+Information Technology and Research (ITR)
+Social Analysis (SCL)
+SEBS Only: Economic Analysis (ECN)
+SEBS Only: Government/Regulatory Analysis (GVT)
+SOE Only: Approved Humanities/Social Science (SOEHS)
+
+
+Subjects:
+
+Accounting (010)
+Administrative Studies (011)
+African Studies (016)
+African, Middle Eastern, and South Asian Languages and Literatures (013)
+Africana Studies (014)
+Agricultural and Natural Resource Management (035)
+Agriculture and Food Systems (020)
+Alcohol Studies (047)
+American Studies (050)
+Animal Science (067)
+Anthropology (070)
+Arabic Languages (074)
+Armenian (078)
+Art (080)
+Art (081)
+Art History (082)
+Arts and Sciences (090)
+Asian Studies (098)
+Biochemistry (115)
+Bioenvironmental Engineering (117)
+Biological Sciences (119)
+Biomathematics (122)
+Biomedical Engineering (125)
+Biotechnology (126)
+Business Analytics and Information Technology (136)
+Business Law (140)
+Cell Biology and Neuroscience (146)
+Chemical Biology (158)
+Chemical and Biochemical Engineering (155)
+Chemistry (160)
+Chinese (165)
+Cinema Studies (175)
+Civil and Environmental Engineering (180)
+Classics (190)
+Cognitive Science (185)
+Communication (192)
+Communication and Media Studies (189)
+Community Health Outreach (193)
+Comparative Literature (195)
+Computer Science (198)
+Criminal Justice (202)
+Dance (203)
+Dance (206)
+Dance Education (207)
+Data Science (219)
+Ecology, Evolution and Natural Resources (216)
+Economics (220)
+Education (300)
+Educational Opportunity Fund (364)
+Electrical and Computer Engineering (332)
+English - Composition and Writing (355)
+English - Creative Writing (351)
+English - Film Studies (354)
+English - Literature (358)
+English - Theories and Methods (359)
+English as a Second Language (356)
+Entomology (370)
+Entrepreneurship (382)
+Environmental Planning and Design (573)
+Environmental Policy, Institutions and Behavior (374)
+Environmental Sciences (375)
+Environmental Studies (381)
+Environmental and Biological Sciences (015)
+Environmental and Business Economics (373)
+Ethics in Business Environment (522)
+European Studies (360)
+Exercise Science (377)
+Filmmaking (211)
+Finance (390)
+Food Science (400)
+French (420)
+General Engineering (440)
+Genetics (447)
+Geography (450)
+Geological Sciences (460)
+German (470)
+Greek (490)
+Greek, Modern (489)
+Health Administration (501)
+Hindi (505)
+History (510)
+History - Africa, Asia, Latin America (508)
+History - American (512)
+History - General/Comparative (506)
+Human Resource Management (533)
+Hungarian (535)
+Industrial and Systems Engineering (540)
+Information Technology and Informatics (547)
+Interdisciplinary - Mason Gross (557)
+Interdisciplinary Studies (554)
+Interdisciplinary Studies - Arts and Sciences (556)
+International Studies (558)
+Italian (560)
+Japanese (565)
+Jewish Studies (563)
+Journalism and Media Studies (567)
+Korean (574)
+Labor Studies (575)
+Landscape Architecture (550)
+Languages and Cultures (617)
+Latin (580)
+Latin American Studies (590)
+Latino and Hispanic Caribbean Studies (595)
+Leadership Skills (607)
+Linguistics (615)
+Management (620)
+Management and Work (624)
+Marine Sciences (628)
+Marketing (630)
+Materials Science and Engineering (635)
+Mathematics (640)
+Mechanical and Aerospace Engineering (650)
+Medical Ethics and Policy (652)
+Medieval Studies (667)
+Meteorology (670)
+Microbiology (680)
+Middle Eastern and Islamic Studies (685)
+Military Education, Air Force (690)
+Military Education, Army (691)
+Military Education, Navy (692)
+Molecular Biology and Biochemistry (694)
+Music (700)
+Music, Applied (701)
+Nursing (705)
+Nutritional Sciences (709)
+Organizational Leadership (713)
+Persian (723)
+Pharmaceutical Chemistry (715)
+Pharmaceutics (721)
+Pharmacology, Cellular and Molecular (718)
+Pharmacy (720)
+Pharmacy Practice and Administration (725)
+Philosophy (730)
+Physician Assistant (745)
+Physics (750)
+Planning and Public Policy (762)
+Plant Science (776)
+Policy, Health, and Administration (775)
+Polish (787)
+Political Science (790)
+Portuguese (810)
+Psychology (830)
+Public Administration and Management (843)
+Public Health (832)
+Public Policy (833)
+Real Estate (851)
+Religion (840)
+Russian (860)
+SEBS Internship (902)
+Social Justice (904)
+Social Work (910)
+Sociology (920)
+Spanish (940)
+Sport Management (955)
+Statistics (960)
+Study Abroad (959)
+Supply Chain and Marketing Science (799)
+Theater (965)
+Theater Arts (966)
+Turkish (973)
+Urban Planning and Design (971)
+Urban Studies and Community Development (975)
+Women's, Gender, and Sexuality Studies (988)
+World Languages (991)
+
+
+Week Days:
+
+   "M": "Monday",
+    "T": "Tuesday",
+    "W": "Wednesday",
+    "H": "Thursday",  # H is Thursday
+    "F": "Friday",
+    "S": "Saturday",
+    "Su": "Sunday"
+
+
+Campuses ID #:
+
+1 - College ave
+2 - Busch
+3 - Livingston
+4 - Cook/Doug
+
+
+Semesters(term):
+
+Winter - 0
+Spring - 1
+Summer - 7
+Fall - 9
+
+
+https://classes.rutgers.edu//soc/api/courses.json?year=2025&term=1&campus=NB
+
+
+
+Discord Bot:
+
+can you implement a feature to scan if courses are open every 2 seconds? create a Discord bot; I got the token, so it messages users on Discord once the class they want is open. This uses index numbers and the class status (OPEN/CLOSED). Implement a button next to the status Closed so users can enter their discord username for notifications (of the index number) when the class opens up. This part ensures they verify their discords and display a discord link. Don’t use a database, instead, store everything in an SQL file in a folder.
+
+Limits:
+- Each user only gets 10 class snipes
+
+
+
+
+For Rutgers course schedule planner:
+So what I imagine this to do is when I am looking at a course, I can click the add button, it popups a little calendar in weekly format, and I can add/remove courses to that calendar and hide/show that calendar. When I add the course, it will show its time in the correct slot, section, and building where the class is being held. Also, for closed off classes, make it grayed out on the calendar
+and at the right corner of that calendar, there should be a button to export all of the index numbers thats added to the calendar
+for example:
+if the user added these two courses to their calendar: 13803 and 10756, it would be:
+https://sims.rutgers.edu/webreg/editSchedule.htm?indexList=13803,10756
+This link should be embedded into that button
+There should be saved profiles and user should be able to make multiple calendars. It will be saved into the webreg links, and there should be an option to paste in the link and then show in the calendar.
+what changes do I need to make to avoid errors
+
+
+Class comparer:
+add a way to cross-examine courses u taken and find a minor thats easy to complete
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/major-minor-details/computer-science-b-a
+Fetches the Rutgers SAS Majors and Minors webpage using requests.
+Parses the HTML with BeautifulSoup.
+Extracts all majors/minors labeled as "(Major)", "(Minor)", or "(Major, Minor)".
+Filters out anything containing "Advising".
+Saves the results into a CSV file (majors_minors.csv).
+Prints the total count of extracted majors/minors.
+
+Automates data collection from Rutgers’ website.
+Saves majors/minors in a structured format.
+Useful for analysis or database input.
+
+make the scrip then go to this website:
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/major-minor-details/african-area-studies
+the link is an example for African Area Studies (Minor),
+Under:
+Program Type: Major, and maybe Credit Intensive Program Summary:
+it would extract the info from the dropdown menus, and also get the links in the rectangles before the:
+<a class="hasTooltip framed-link no-underline button fixed-width-350" href="/./major/list-of-majors-and-minors" rel="nofollow noopener noreferrer" target="_self">View all Majors / Minors</a>
+
+
+
+
+for the major or minor requirement, look for
+"requirement for" major or minor, or both can be there, here is an example of where it is on the page:
+<!-- Display the field lable as the collapsible 'anchor' -->
+<a class="collapsible collapsed" data-bs-toggle="collapse" href="#collapse46" role="button" aria-expanded="false" aria-controls="collapse46">
+<span class="field-label ">Requirement for Major Declaration </span>
+</a>
+</p>
+<!-- Content within the field - Field Value -->
+<div class="collapse" id="collapse46">
+<div >
+<span class="field-value "> None</span>
+</div>
+</div></li>
+<li class="field-entry approval-type-minor large-normal paragraph-spaced full-width no-left-margin"><!-- Add code for Collapsible content to be displayed -->
+<!-- 2024-05-29 - LG -->
+<p>
+<!-- Display the field lable as the collapsible 'anchor' -->
+<a class="collapsible collapsed" data-bs-toggle="collapse" href="#collapse47" role="button" aria-expanded="false" aria-controls="collapse47">
+<span class="field-label ">Requirement for Minor Declaration </span>
+</a>
+</p>
+<!-- Content within the field - Field Value -->
+<div class="collapse" id="collapse47">
+<div >
+<span class="field-value "> None</span>
+</div>
+</div></li>
+<li class="field-entry first-semester-planning large-normal paragraph-spaced full-width no-left-margin"><!-- Add code for Collapsible content to be displayed -->
+<!-- 2024-05-29 - LG -->
+<p>
+<!-- Display the field lable as the collapsible 'anchor' -->
+
+
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/list-of-majors-and-minors
+
+
+
+Course Planner:
+
+Make the light/dark
+
+
+Create a set of interactive buttons with a beautiful glow effect on hover. Each button should have its own unique color (blue, green, orange, and purple). When I hover over a button, it should emit a soft radial glow that animates outward with a spring-like motion. The glow should be more vibrant in dark mode.
+
+The buttons should:
+- Have rounded corners and a clean, modern design
+- Include both an icon and text label
+- Have a smooth animation when the glow appears and disappears
+- Work well in both light and dark modes
+- Be responsive and accessible
+
+Include a simple demo page with a dark mode toggle so I can see how they look in both themes.
+
+
+
+
+New filter ideas
+
+
+Section Status:
+
+
+Open
+Closed
+Course Types:
+
+
+Traditional/Face-to-Face
+Hybrid
+Online & Remote Instruction
+Day & Time:
+
+
+Days: Monday (M), Tuesday (T), Wednesday (W), Thursday (Th), Friday (F), Weekend (We)
+Times:
+Morning: 8:00 AM – 11:00 AM
+Afternoon: 11:00 AM – 4:00 PM
+Evening: 4:00 PM – 10:00 PM
+Asynchronous courses are not included.
+Campus Location:
+
+
+College Avenue
+Busch
+Livingston
+C/D (Cook/Douglass)
+Online
+
+
+There's actually a subtle but important distinction between these two "Online" options:
+
+1. **Type: "Online & Remote Instruction"** - This filter is about the instructional method or delivery format of the course. It filters courses based on how they're taught, regardless of which campus they're administratively associated with. This includes:
+
+1. Fully asynchronous online courses
+2. Synchronous remote courses (live video lectures)
+3. Any course with no in-person component
+
+
+
+2. **Campus: "Online"** - This filter is about the administrative campus designation. In Rutgers' course system, courses that don't have a physical location are designated with "Online" as their campus instead of one of the physical campuses (College Ave, Busch, etc.).
+
+
+The distinction matters because:
+
+- A course might be designated as being on the "Online" campus but could have synchronous meeting times (like scheduled Zoom sessions)
+- A course might be taught entirely online but still be administratively associated with a specific physical campus
+- Some hybrid courses might have both online components and in-person components on a physical campus
+School/Unit:
+
+01 - School of Arts & Sciences
+03 - Military Science
+04 - School of Communication & Info (U)
+05 - Graduate School of Education (U)
+07 - Mason Gross School of the Arts (U)
+09 - School of Social Work (U)
+10 - Bloustein School of Planning (U)
+11 - School of Environmental & Biological Sci
+13 - Grad School of Applied & Prof Psych (U)
+14 - School of Engineering
+30 - Ernest Mario School of Pharmacy (U)
+33 - Rutgers Business School- NB campus (U)
+37 - School of Management & Labor Rel (U)
+77 - School of Nursing - New Brunswick (U)
+
+Core Codes:
+
+Non-Core: Community Engagement (CE)
+Philosophical and Theoretical Issues (AHo)
+Arts and Literatures (AHp)
+Nature of Languages (AHq)
+Critical Creative Expression (AHr)
+Diversities and Social Inequalities (CCD)
+Our Common Future (CCO)
+Historical Analysis (HST)
+Natural Sciences (NS)
+Quantitative Information (QQ)
+Mathematical or Formal Reasoning (QR)
+Writing and Communication 01:355:101 (WC)
+Writing and Communication, Revision (WCr)
+Writing and Communication in a Discipline (WCd)
+Information Technology and Research (ITR)
+Social Analysis (SCL)
+SEBS Only: Economic Analysis (ECN)
+SEBS Only: Government/Regulatory Analysis (GVT)
+SOE Only: Approved Humanities/Social Science (SOEHS)
+
+
+Subjects:
+
+Accounting (010)
+Administrative Studies (011)
+African Studies (016)
+African, Middle Eastern, and South Asian Languages and Literatures (013)
+Africana Studies (014)
+Agricultural and Natural Resource Management (035)
+Agriculture and Food Systems (020)
+Alcohol Studies (047)
+American Studies (050)
+Animal Science (067)
+Anthropology (070)
+Arabic Languages (074)
+Armenian (078)
+Art (080)
+Art (081)
+Art History (082)
+Arts and Sciences (090)
+Asian Studies (098)
+Biochemistry (115)
+Bioenvironmental Engineering (117)
+Biological Sciences (119)
+Biomathematics (122)
+Biomedical Engineering (125)
+Biotechnology (126)
+Business Analytics and Information Technology (136)
+Business Law (140)
+Cell Biology and Neuroscience (146)
+Chemical Biology (158)
+Chemical and Biochemical Engineering (155)
+Chemistry (160)
+Chinese (165)
+Cinema Studies (175)
+Civil and Environmental Engineering (180)
+Classics (190)
+Cognitive Science (185)
+Communication (192)
+Communication and Media Studies (189)
+Community Health Outreach (193)
+Comparative Literature (195)
+Computer Science (198)
+Criminal Justice (202)
+Dance (203)
+Dance (206)
+Dance Education (207)
+Data Science (219)
+Ecology, Evolution and Natural Resources (216)
+Economics (220)
+Education (300)
+Educational Opportunity Fund (364)
+Electrical and Computer Engineering (332)
+English - Composition and Writing (355)
+English - Creative Writing (351)
+English - Film Studies (354)
+English - Literature (358)
+English - Theories and Methods (359)
+English as a Second Language (356)
+Entomology (370)
+Entrepreneurship (382)
+Environmental Planning and Design (573)
+Environmental Policy, Institutions and Behavior (374)
+Environmental Sciences (375)
+Environmental Studies (381)
+Environmental and Biological Sciences (015)
+Environmental and Business Economics (373)
+Ethics in Business Environment (522)
+European Studies (360)
+Exercise Science (377)
+Filmmaking (211)
+Finance (390)
+Food Science (400)
+French (420)
+General Engineering (440)
+Genetics (447)
+Geography (450)
+Geological Sciences (460)
+German (470)
+Greek (490)
+Greek, Modern (489)
+Health Administration (501)
+Hindi (505)
+History (510)
+History - Africa, Asia, Latin America (508)
+History - American (512)
+History - General/Comparative (506)
+Human Resource Management (533)
+Hungarian (535)
+Industrial and Systems Engineering (540)
+Information Technology and Informatics (547)
+Interdisciplinary - Mason Gross (557)
+Interdisciplinary Studies (554)
+Interdisciplinary Studies - Arts and Sciences (556)
+International Studies (558)
+Italian (560)
+Japanese (565)
+Jewish Studies (563)
+Journalism and Media Studies (567)
+Korean (574)
+Labor Studies (575)
+Landscape Architecture (550)
+Languages and Cultures (617)
+Latin (580)
+Latin American Studies (590)
+Latino and Hispanic Caribbean Studies (595)
+Leadership Skills (607)
+Linguistics (615)
+Management (620)
+Management and Work (624)
+Marine Sciences (628)
+Marketing (630)
+Materials Science and Engineering (635)
+Mathematics (640)
+Mechanical and Aerospace Engineering (650)
+Medical Ethics and Policy (652)
+Medieval Studies (667)
+Meteorology (670)
+Microbiology (680)
+Middle Eastern and Islamic Studies (685)
+Military Education, Air Force (690)
+Military Education, Army (691)
+Military Education, Navy (692)
+Molecular Biology and Biochemistry (694)
+Music (700)
+Music, Applied (701)
+Nursing (705)
+Nutritional Sciences (709)
+Organizational Leadership (713)
+Persian (723)
+Pharmaceutical Chemistry (715)
+Pharmaceutics (721)
+Pharmacology, Cellular and Molecular (718)
+Pharmacy (720)
+Pharmacy Practice and Administration (725)
+Philosophy (730)
+Physician Assistant (745)
+Physics (750)
+Planning and Public Policy (762)
+Plant Science (776)
+Policy, Health, and Administration (775)
+Polish (787)
+Political Science (790)
+Portuguese (810)
+Psychology (830)
+Public Administration and Management (843)
+Public Health (832)
+Public Policy (833)
+Real Estate (851)
+Religion (840)
+Russian (860)
+SEBS Internship (902)
+Social Justice (904)
+Social Work (910)
+Sociology (920)
+Spanish (940)
+Sport Management (955)
+Statistics (960)
+Study Abroad (959)
+Supply Chain and Marketing Science (799)
+Theater (965)
+Theater Arts (966)
+Turkish (973)
+Urban Planning and Design (971)
+Urban Studies and Community Development (975)
+Women's, Gender, and Sexuality Studies (988)
+World Languages (991)
+
+
+Week Days:
+
+   "M": "Monday",
+    "T": "Tuesday",
+    "W": "Wednesday",
+    "H": "Thursday",  # H is Thursday
+    "F": "Friday",
+    "S": "Saturday",
+    "Su": "Sunday"
+
+
+Campuses ID #:
+
+1 - College ave
+2 - Busch
+3 - Livingston
+4 - Cook/Doug
+
+
+Semesters(term):
+
+Winter - 0
+Spring - 1
+Summer - 7
+Fall - 9
+
+
+https://classes.rutgers.edu//soc/api/courses.json?year=2025&term=1&campus=NB
+
+
+
+Discord Bot:
+
+can you implement a feature to scan if courses are open every 2 seconds? create a Discord bot; I got the token, so it messages users on Discord once the class they want is open. This uses index numbers and the class status (OPEN/CLOSED). Implement a button next to the status Closed so users can enter their discord username for notifications (of the index number) when the class opens up. This part ensures they verify their discords and display a discord link. Don’t use a database, instead, store everything in an SQL file in a folder.
+
+Limits:
+- Each user only gets 10 class snipes
+
+
+
+
+For Rutgers course schedule planner:
+So what I imagine this to do is when I am looking at a course, I can click the add button, it popups a little calendar in weekly format, and I can add/remove courses to that calendar and hide/show that calendar. When I add the course, it will show its time in the correct slot, section, and building where the class is being held. Also, for closed off classes, make it grayed out on the calendar
+and at the right corner of that calendar, there should be a button to export all of the index numbers thats added to the calendar
+for example:
+if the user added these two courses to their calendar: 13803 and 10756, it would be:
+https://sims.rutgers.edu/webreg/editSchedule.htm?indexList=13803,10756
+This link should be embedded into that button
+There should be saved profiles and user should be able to make multiple calendars. It will be saved into the webreg links, and there should be an option to paste in the link and then show in the calendar.
+what changes do I need to make to avoid errors
+
+
+Class comparer:
+add a way to cross-examine courses u taken and find a minor thats easy to complete
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/major-minor-details/computer-science-b-a
+Fetches the Rutgers SAS Majors and Minors webpage using requests.
+Parses the HTML with BeautifulSoup.
+Extracts all majors/minors labeled as "(Major)", "(Minor)", or "(Major, Minor)".
+Filters out anything containing "Advising".
+Saves the results into a CSV file (majors_minors.csv).
+Prints the total count of extracted majors/minors.
+
+Automates data collection from Rutgers’ website.
+Saves majors/minors in a structured format.
+Useful for analysis or database input.
+
+make the scrip then go to this website:
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/major-minor-details/african-area-studies
+the link is an example for African Area Studies (Minor),
+Under:
+Program Type: Major, and maybe Credit Intensive Program Summary:
+it would extract the info from the dropdown menus, and also get the links in the rectangles before the:
+<a class="hasTooltip framed-link no-underline button fixed-width-350" href="/./major/list-of-majors-and-minors" rel="nofollow noopener noreferrer" target="_self">View all Majors / Minors</a>
+
+
+
+
+for the major or minor requirement, look for
+"requirement for" major or minor, or both can be there, here is an example of where it is on the page:
+<!-- Display the field lable as the collapsible 'anchor' -->
+<a class="collapsible collapsed" data-bs-toggle="collapse" href="#collapse46" role="button" aria-expanded="false" aria-controls="collapse46">
+<span class="field-label ">Requirement for Major Declaration </span>
+</a>
+</p>
+<!-- Content within the field - Field Value -->
+<div class="collapse" id="collapse46">
+<div >
+<span class="field-value "> None</span>
+</div>
+</div></li>
+<li class="field-entry approval-type-minor large-normal paragraph-spaced full-width no-left-margin"><!-- Add code for Collapsible content to be displayed -->
+<!-- 2024-05-29 - LG -->
+<p>
+<!-- Display the field lable as the collapsible 'anchor' -->
+<a class="collapsible collapsed" data-bs-toggle="collapse" href="#collapse47" role="button" aria-expanded="false" aria-controls="collapse47">
+<span class="field-label ">Requirement for Minor Declaration </span>
+</a>
+</p>
+<!-- Content within the field - Field Value -->
+<div class="collapse" id="collapse47">
+<div >
+<span class="field-value "> None</span>
+</div>
+</div></li>
+<li class="field-entry first-semester-planning large-normal paragraph-spaced full-width no-left-margin"><!-- Add code for Collapsible content to be displayed -->
+<!-- 2024-05-29 - LG -->
+<p>
+<!-- Display the field lable as the collapsible 'anchor' -->
+
+
+https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/list-of-majors-and-minors
+
+
+
+Course Planner:
+
+Make the light/dark
+
+
+Create a set of interactive buttons with a beautiful glow effect on hover. Each button should have its own unique color (blue, green, orange, and purple). When I hover over a button, it should emit a soft radial glow that animates outward with a spring-like motion. The glow should be more vibrant in dark mode.
+
+The buttons should:
+- Have rounded corners and a clean, modern design
+- Include both an icon and text label
+- Have a smooth animation when the glow appears and disappears
+- Work well in both light and dark modes
+- Be responsive and accessible
+
+Include a simple demo page with a dark mode toggle so I can see how they look in both themes.
+
+
+
+
+New filter ideas
+
+
+Section Status:
+
+
+Open
+Closed
+Course Types:
+
+
+Traditional/Face-to-Face
+Hybrid
+Online & Remote Instruction
+Day & Time:
+
+
+Days: Monday (M), Tuesday (T), Wednesday (W), Thursday (Th), Friday (F), Weekend (We)
+Times:
+Morning: 8:00 AM – 11:00 AM
+Afternoon: 11:00 AM – 4:00 PM
+Evening: 4:00 PM – 10:00 PM
+Asynchronous courses are not included.
+Campus Location:
+
+
+College Avenue
+Busch
+Livingston
+C/D (Cook/Douglass)
+Online
+
+
+There's actually a subtle but important distinction between these two "Online" options:
+
+1. **Type: "Online & Remote Instruction"** - This filter is about the instructional method or delivery format of the course. It filters courses based on how they're taught, regardless of which campus they're administratively associated with. This includes:
+
+1. Fully asynchronous online courses
+2. Synchronous remote courses (live video lectures)
+3. Any course with no in-person component
+
+
+
+2. **Campus: "Online"** - This filter is about the administrative campus designation. In Rutgers' course system, courses that don't have a physical location are designated with "Online" as their campus instead of one of the physical campuses (College Ave, Busch, etc.).
+
+
+The distinction matters because:
+
+- A course might be designated as being on the "Online" campus but could have synchronous meeting times (like scheduled Zoom sessions)
+- A course might be taught entirely online but still be administratively associated with a specific physical campus
+- Some hybrid courses might have both online components and in-person components on a physical campus

@@ -251,6 +251,35 @@ class CourseFetcher:
             title = course.get("title", "").lower()
             subject_description = course.get("subjectDescription", "").lower()
             
+            # Aggregate instructor names for the course from its sections
+            instructor_names = set()
+            try:
+                for section in course.get("sections", []) or []:
+                    for instr in section.get("instructors", []) or []:
+                        raw_name = (instr.get("name", "") or "").strip()
+                        if not raw_name:
+                            continue
+                        lower_raw = raw_name.lower()
+                        instructor_names.add(lower_raw)
+                        # Normalize common formats: "LAST, FIRST" -> "first last" and "last first"
+                        if "," in raw_name:
+                            parts = [p.strip() for p in raw_name.split(",", 1)]
+                            if len(parts) == 2:
+                                last, first = parts[0], parts[1]
+                                first_last = f"{first} {last}".lower()
+                                last_first = f"{last} {first}".lower()
+                                instructor_names.add(first_last)
+                                instructor_names.add(last_first)
+                        else:
+                            # Also add swapped order for two-token names like "Jane Doe"
+                            tokens = raw_name.split()
+                            if len(tokens) == 2:
+                                swapped = f"{tokens[1]} {tokens[0]}".lower()
+                                instructor_names.add(swapped)
+            except Exception:
+                # If structure differs for some rows, skip instructor aggregation silently
+                pass
+            
             # Store courses by their courseString for grouping
             if course_string not in course_groups:
                 course_groups[course_string] = []
@@ -261,6 +290,31 @@ class CourseFetcher:
             if query == "cs" and subject != "198":
                 continue
                 
+            # If the query exactly matches an instructor full name or a normalized variant, prioritize this course
+            if instructor_names and query in instructor_names:
+                high_relevance_matches.append((92, course_string))
+                # Do not continue; allow other exact matches to contribute as well
+            
+            # Fuzzy matching for instructor names (handles typos)
+            if instructor_names:
+                instructor_fuzzy_scores = []
+                for instructor_name in instructor_names:
+                    # Try different fuzzy matching strategies
+                    score_exact = fuzz.ratio(query, instructor_name)
+                    score_partial = fuzz.partial_ratio(query, instructor_name)
+                    score_token_sort = fuzz.token_sort_ratio(query, instructor_name)
+                    score_token_set = fuzz.token_set_ratio(query, instructor_name)
+                    
+                    # Take the best score
+                    best_score = max(score_exact, score_partial, score_token_sort, score_token_set)
+                    instructor_fuzzy_scores.append(best_score)
+                
+                # If any instructor name has a high fuzzy match, include this course
+                max_instructor_score = max(instructor_fuzzy_scores) if instructor_fuzzy_scores else 0
+                if max_instructor_score >= 75:  # Lower threshold for instructor fuzzy matching
+                    # Add to results with score based on fuzzy match quality
+                    results.append((max_instructor_score, course_string))
+
             # Handle specific course query patterns
             if is_specific_course_query:
                 # Perfect match on subject and course number
@@ -311,9 +365,14 @@ class CourseFetcher:
             score_subject = fuzz.token_set_ratio(query, subject)
             score_course_number = fuzz.token_set_ratio(query, course_number)
             score_subject_desc = fuzz.token_set_ratio(query, subject_description)
+            
+            # Fuzzy score against instructor names (combined)
+            score_instructors = 0
+            if instructor_names:
+                score_instructors = fuzz.token_set_ratio(query, " ".join(instructor_names))
 
             max_score = max(score_course_string, score_title, score_subject,
-                            score_course_number, score_subject_desc)
+                            score_course_number, score_subject_desc, score_instructors)
                             
             if max_score >= threshold:
                 results.append((max_score, course_string))

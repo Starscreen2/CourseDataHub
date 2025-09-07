@@ -95,6 +95,65 @@ document.addEventListener("DOMContentLoaded", function () {
     const searchForm = document.getElementById('searchForm');
     const searchInput = document.getElementById('search');
     const searchResults = document.getElementById('results');
+    const peopleDropdownMenu = document.getElementById('peopleDropdownMenu');
+
+    function normalizeInstructorName(name) {
+        const trimmed = (name || '').trim();
+        if (!trimmed) return '';
+        if (trimmed.includes(',')) {
+            const parts = trimmed.split(',');
+            if (parts.length >= 2) {
+                const last = parts[0].trim();
+                const first = parts[1].trim();
+                return `${first} ${last}`;
+            }
+        }
+        return trimmed;
+    }
+
+    function buildInstructorIndex(courses) {
+        const map = new Map(); // key: displayName, value: Set of courseStrings
+        courses.forEach(course => {
+            const code = course.courseString;
+            (course.sections || []).forEach(section => {
+                (section.instructors || []).forEach(instr => {
+                    const display = normalizeInstructorName(instr);
+                    if (!display) return;
+                    if (!map.has(display)) map.set(display, new Set());
+                    map.get(display).add(code);
+                });
+            });
+        });
+        // Convert to sorted array of {name, codes}
+        return Array.from(map.entries())
+            .map(([name, setCodes]) => ({ name, codes: Array.from(setCodes).sort() }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderPeopleDropdown(courses) {
+        if (!peopleDropdownMenu) return;
+        const index = buildInstructorIndex(courses);
+        if (index.length === 0) {
+            peopleDropdownMenu.innerHTML = '<li class="dropdown-item text-muted">No instructors found</li>';
+            return;
+        }
+        peopleDropdownMenu.innerHTML = index.map(item => {
+            const label = `${item.name} <span class=\"text-muted\">(${item.codes.join(', ')})</span>`;
+            return `<li><a href="#" class="dropdown-item instructor-option" data-name="${item.name.replace(/\"/g, '&quot;')}">${label}</a></li>`;
+        }).join('');
+    }
+
+    // Click to populate search with instructor name
+    document.body.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('instructor-option')) {
+            const name = e.target.getAttribute('data-name');
+            if (name) {
+                searchInput.value = name;
+                // Submit the form to search by this instructor
+                searchForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
 
     searchForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -121,10 +180,37 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success' && data.data.length > 0) {
-                        const resultsHtml = data.data.map((course, courseIndex) => `
+                        // Populate People dropdown from current results
+                        renderPeopleDropdown(data.data);
+                        const resultsHtml = data.data.map((course, courseIndex) => {
+                            // Extract all unique instructors for this course
+                            const courseInstructors = new Set();
+                            (course.sections || []).forEach(section => {
+                                (section.instructors || []).forEach(instructor => {
+                                    const normalized = normalizeInstructorName(instructor);
+                                    if (normalized) courseInstructors.add(normalized);
+                                });
+                            });
+                            const instructorsList = Array.from(courseInstructors).sort();
+                            
+                            return `
                             <div class="search-result-item card mb-4">
-                                <div class="card-header">
+                                <div class="card-header d-flex justify-content-between align-items-center">
                                     <h4 class="mb-0">${course.courseString} - ${course.title}</h4>
+                                    ${instructorsList.length > 0 ? `
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" 
+                                                    id="instructorsDropdown${courseIndex}" data-bs-toggle="dropdown" 
+                                                    aria-expanded="false">
+                                                Instructors (${instructorsList.length})
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="instructorsDropdown${courseIndex}">
+                                                ${instructorsList.map(instructor => `
+                                                    <li><a class="dropdown-item instructor-option" href="#" data-name="${instructor.replace(/"/g, '&quot;')}">${instructor}</a></li>
+                                                `).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
                                 </div>
                                 <div class="card-body">
                                     <div class="row mb-3">
@@ -181,7 +267,8 @@ document.addEventListener("DOMContentLoaded", function () {
                                     </div>
                                 </div>
                             </div>
-                        `).join('');
+                        `;
+                        }).join('');
 
                         searchResults.innerHTML = resultsHtml;
                         initializeTooltips();

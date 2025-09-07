@@ -7,9 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=2">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script defer src="/static/script.js"></script>
+    <script src="/static/js/course-planner.js"></script>
 </head>
 <body>
     <!-- Rutgers Navigation Bar -->
@@ -26,7 +28,7 @@
                         <i class="bi bi-link-45deg me-2"></i>Links
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="linksDropdown">
-                        <li><a class="dropdown-item" href="https://rutgers-course-planner.vercel.app/" target="_blank">Schedule Planner</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPlanner(); return false;">Course Planner</a></li>
                         <li><a class="dropdown-item" href="https://rutgers-dining.vercel.app/" target="_blank">Meal Planner</a></li>
                         <li><a class="dropdown-item" href="https://scheduling.rutgers.edu/scheduling/academic-calendar" target="_blank">Academic Calendar</a></li>
                         <li><a class="dropdown-item" href="https://ibrahimmudassar.github.io/Rutgers-Salaries/" target="_blank">Rutgers Salaries</a></li>
@@ -74,9 +76,18 @@
             <form id="searchForm">
                 <div class="form-group">
                     <input type="text" class="form-control" id="search" placeholder="Search courses (e.g., CS 111, Intro to Computer Science)">
-                    <button type="submit" class="btn btn-primary mt-3">Search Courses</button>
-                    <a href="https://rutgers-course-planner.vercel.app/" target="_blank" class="bi bi-calendar3 btn btn-primary mt-3""> Course Planner</a>
-
+                    <div class="d-flex gap-2 mt-3 flex-wrap align-items-center">
+                        <button type="submit" class="btn btn-primary">Search Courses</button>
+                        <!-- People Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="peopleDropdownButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                People
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="peopleDropdownButton" id="peopleDropdownMenu" style="max-height: 320px; overflow-y: auto; min-width: 22rem;">
+                                <!-- dynamically populated -->
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -91,6 +102,153 @@
         </div>
 
         <div class="results" id="results"></div>
+    </div>
+
+    <!-- Floating Course Planner Button -->
+    <div id="floatingPlanner" class="floating-planner">
+        <div class="floating-button-container">
+            <!-- Course count badge -->
+            <div id="courseCountBadge" class="course-count-badge" style="display: none;">
+                <span id="courseCount">0</span>
+            </div>
+            
+            <!-- Main floating button -->
+            <button id="plannerButton" class="floating-button" onclick="togglePlanner()">
+                <i class="bi bi-calendar3"></i>
+                <span class="button-text">Planner</span>
+            </button>
+            
+            <!-- Tooltip -->
+            <div class="floating-tooltip">
+                <span id="tooltipText">Open Calendar</span>
+                <div class="tooltip-arrow"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Planner Popup -->
+    <div id="plannerPopup" class="planner-popup">
+        <div class="planner-backdrop" onclick="closePlanner()"></div>
+        <div class="planner-content">
+            <!-- Header -->
+            <div class="planner-header">
+                <div class="planner-title">
+                    <h1>Rutgers Course Planner</h1>
+                    <p>Plan and visualize your class schedule</p>
+                </div>
+                <div class="planner-actions">
+                    <button class="btn btn-primary" onclick="closePlanner()">
+                        <i class="bi bi-search me-1"></i>Search Classes
+                    </button>
+                    <button class="btn btn-close" onclick="closePlanner()"></button>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="planner-controls">
+                <div class="schedule-info">
+                    <span id="plannerSubtitle">0 courses in schedule</span>
+                </div>
+                <div class="controls-right">
+                    <div class="view-toggle">
+                        <button class="view-btn active" id="calendarViewBtn" onclick="switchView('calendar')">
+                            <i class="bi bi-calendar3 me-1"></i>Calendar View
+                        </button>
+                        <button class="view-btn" id="listViewBtn" onclick="switchView('list')">
+                            <i class="bi bi-list me-1"></i>List View
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportSchedule()">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Campus Colors Legend -->
+            <div class="campus-legend">
+                <span class="legend-label">Campus Colors:</span>
+                <div class="campus-colors">
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #dc3545;"></div>
+                        <span>College Ave</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #0d6efd;"></div>
+                        <span>Busch</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #198754;"></div>
+                        <span>Livingston</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #fd7e14;"></div>
+                        <span>Cook/Douglass</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #6f42c1;"></div>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="planner-body">
+                <!-- Calendar View -->
+                <div id="calendarView" class="calendar-view">
+                    <div class="weekly-calendar">
+                        <div class="calendar-header">
+                            <div class="time-column"></div>
+                            <div class="day-header">Monday</div>
+                            <div class="day-header">Tuesday</div>
+                            <div class="day-header">Wednesday</div>
+                            <div class="day-header">Thursday</div>
+                            <div class="day-header">Friday</div>
+                            <div class="day-header">Saturday</div>
+                            <div class="day-header">Sunday</div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Time slots will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List View -->
+                <div id="listView" class="list-view" style="display: none;">
+                    <div id="emptyState" class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <h3>No courses scheduled</h3>
+                        <p>Start building your schedule by searching for courses and adding them to your planner.</p>
+                        <button class="btn btn-primary" onclick="closePlanner()">
+                            <i class="bi bi-search me-2"></i>Search Courses
+                        </button>
+                    </div>
+
+                    <div id="courseList" class="course-list" style="display: none;">
+                        <div id="scheduledCoursesList" class="courses-grid">
+                            <!-- Courses will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="planner-footer">
+                <button class="btn btn-primary" onclick="exportToWebReg()">
+                    <i class="bi bi-calendar-check me-1"></i>Export to WebReg
+                </button>
+                <button class="btn btn-outline-primary" onclick="exportSchedule()">
+                    <i class="bi bi-download me-1"></i>Export JSON
+                </button>
+                <button class="btn btn-outline-secondary" onclick="copyScheduleLink()">
+                    <i class="bi bi-link-45deg me-1"></i>Copy Link
+                </button>
+                <button class="btn btn-outline-danger" onclick="clearSchedule()">
+                    <i class="bi bi-trash me-1"></i>Clear Calendar
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -194,6 +352,19 @@
 
                     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
                     tooltipTriggerList.forEach(tooltipEl => new bootstrap.Tooltip(tooltipEl));
+                    
+                    // Add planner buttons after rendering (without interfering with existing functionality)
+                    setTimeout(addPlannerButtons, 100);
+                    setTimeout(addPlannerButtons, 500); // Second attempt
+                    setTimeout(addPlannerButtons, 1000); // Third attempt
+                    
+                    // Also add buttons when sections are expanded
+                    const collapseButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
+                    collapseButtons.forEach(button => {
+                        button.addEventListener('shown.bs.collapse', function() {
+                            setTimeout(addPlannerButtons, 50);
+                        });
+                    });
                 } else {
                     resultsDiv.innerHTML = '<div class="alert alert-info">No courses found</div>';
                 }
@@ -201,6 +372,245 @@
                 loadingSpinner.style.display = 'none';
                 console.error('Error searching courses:', error);
                 resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching courses</div>';
+            }
+        });
+
+        // Floating Course Planner JavaScript
+        // Global variables and initialization are now handled in course-planner.js
+
+        // Initialize planner on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePlannerUI();
+            showFloatingButton();
+            
+            // Set up observer to watch for new sections being added
+            setupSectionObserver();
+        });
+
+        function setupSectionObserver() {
+            const resultsDiv = document.getElementById('results');
+            if (!resultsDiv) return;
+
+            // Create a MutationObserver to watch for new sections
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        // Check if any new section items were added
+                        const addedNodes = Array.from(mutation.addedNodes);
+                        const hasNewSections = addedNodes.some(node => 
+                            node.nodeType === Node.ELEMENT_NODE && 
+                            (node.classList?.contains('section-item') || 
+                             node.querySelector?.('.section-item'))
+                        );
+                        
+                        if (hasNewSections) {
+                            setTimeout(addPlannerButtons, 100);
+                        }
+                    }
+                });
+            });
+
+            // Start observing
+            observer.observe(resultsDiv, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        // showFloatingButton() is now in course-planner.js
+
+        // togglePlanner(), openPlanner(), closePlanner(), and openCoursePlanner() are now in course-planner.js
+
+        // exportSchedule() is now in course-planner.js
+
+        // switchView() and generateCalendarGrid() are now in course-planner.js
+
+        // addCoursesToCalendar() is now in course-planner.js
+
+        // copyScheduleLink() and clearSchedule() are now in course-planner.js
+
+        // updatePlannerUI() is now in course-planner.js
+
+        // updateCourseList() is now in course-planner.js
+
+        // updateStats() is now in course-planner.js
+
+        // addCourseToPlanner() is now in course-planner.js
+
+        // removeCourse() is now in course-planner.js
+
+        // showNotification() is now in course-planner.js
+
+        // Add "Add to Planner" buttons to each section
+        function addPlannerButtons() {
+            const resultsDiv = document.getElementById('results');
+            if (!resultsDiv) return;
+            
+            // Find all section items, including those in collapsed sections
+            const sectionCards = resultsDiv.querySelectorAll('.section-item');
+            
+            console.log(`Found ${sectionCards.length} section cards to process`);
+            
+            sectionCards.forEach((sectionCard, index) => {
+                const existingButton = sectionCard.querySelector('.add-to-planner-btn');
+                
+                if (!existingButton) {
+                    console.log(`Adding button to section ${index + 1}`);
+                    const addButton = document.createElement('button');
+                    addButton.className = 'btn btn-outline-primary add-to-planner-btn mt-2';
+                    addButton.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Planner';
+                    addButton.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        try {
+                            // Extract course data from the parent course card
+                            const courseCard = sectionCard.closest('.search-result-item');
+                            if (!courseCard) {
+                                console.error('Course card not found');
+                                return;
+                            }
+                            
+                            const courseTitle = courseCard.querySelector('h4');
+                            if (!courseTitle) {
+                                console.error('Course title not found');
+                                return;
+                            }
+                            
+                            const titleParts = courseTitle.textContent.split(' - ');
+                            const courseString = titleParts[0] || '';
+                            const title = titleParts[1] || '';
+                            
+                            console.log('Course string:', courseString, 'Title:', title);
+                            
+                            // Extract course details more safely
+                            const courseDetails = courseCard.querySelectorAll('.col-md-6 p');
+                            let subject = '', credits = '', school = '';
+                            
+                            courseDetails.forEach(p => {
+                                const text = p.textContent;
+                                if (text.includes('Subject:')) {
+                                    subject = text.replace('Subject:', '').trim();
+                                } else if (text.includes('Credits:')) {
+                                    credits = text.replace('Credits:', '').trim();
+                                } else if (text.includes('School:')) {
+                                    school = text.replace('School:', '').trim();
+                                }
+                            });
+                            
+                            // Extract section data
+                            const sectionHeader = sectionCard.querySelector('h6');
+                            if (!sectionHeader) {
+                                console.error('Section header not found');
+                                return;
+                            }
+                            
+                            const sectionText = sectionHeader.textContent;
+                            const sectionNumber = sectionText.match(/Section (\d+)/)?.[1] || '';
+                            const sectionIndex = sectionText.match(/Index: (\d+)/)?.[1] || '';
+                            
+                            console.log('Section number:', sectionNumber, 'Index:', sectionIndex);
+                            
+                            // Extract status
+                            const statusElement = sectionCard.querySelector('.status-open, .status-closed');
+                            const status = statusElement ? statusElement.textContent : 'Unknown';
+                            
+                            // Extract instructors
+                            const instructorElements = sectionCard.querySelectorAll('.instructor-name');
+                            const instructors = Array.from(instructorElements).map(el => el.textContent.trim()).filter(Boolean);
+                            
+                            // Extract meeting times
+                            const meetingTimes = [];
+                            const meetingTimeElements = sectionCard.querySelectorAll('.meeting-times p');
+                            meetingTimeElements.forEach(timeEl => {
+                                const text = timeEl.textContent;
+                                const dayMatch = text.match(/(\w+)/);
+                                const timeMatch = text.match(/(\d{1,2}:\d{2} [AP]M) - (\d{1,2}:\d{2} [AP]M)/);
+                                const locationMatch = text.match(/Location: ([^C]+)/);
+                                const campusMatch = text.match(/Campus: ([^M]+)/);
+                                
+                                if (dayMatch && timeMatch) {
+                                    meetingTimes.push({
+                                        day: dayMatch[1],
+                                        startTime: { formatted: timeMatch[1] },
+                                        endTime: { formatted: timeMatch[2] },
+                                        building: locationMatch ? locationMatch[1].trim() : '',
+                                        campus: campusMatch ? campusMatch[1].trim() : ''
+                                    });
+                                }
+                            });
+                            
+                            console.log('Meeting times:', meetingTimes);
+                            
+                            const course = {
+                                courseString: courseString,
+                                title: title,
+                                subject: subject,
+                                credits: credits,
+                                school: school,
+                                campusLocations: [],
+                                selectedSection: {
+                                    number: sectionNumber,
+                                    index: sectionIndex,
+                                    status: status,
+                                    instructors: instructors.length > 0 ? instructors : ['TBA'],
+                                    meetingTimes: meetingTimes
+                                }
+                            };
+                            
+                            console.log('Course object:', course);
+                            addCourseToPlanner(course);
+                        } catch (error) {
+                            console.error('Error adding course to planner:', error);
+                            showNotification('Error adding course to planner: ' + error.message, 'danger');
+                        }
+                    };
+                    
+                    // Add button to the section card body
+                    const sectionBody = sectionCard.querySelector('.card-body');
+                    if (sectionBody) {
+                        sectionBody.appendChild(addButton);
+                        console.log(`Button added to section ${index + 1}`);
+                    } else {
+                        console.log(`No card-body found for section ${index + 1}`);
+                    }
+                } else {
+                    console.log(`Button already exists for section ${index + 1}`);
+                }
+            });
+        }
+
+        // Manual function to trigger button addition (can be called from console for debugging)
+        function forceAddPlannerButtons() {
+            console.log('Force adding planner buttons...');
+            addPlannerButtons();
+        }
+
+        // Keep the original search functionality intact and just add planner buttons
+        // The original search form handler is already defined above, so we just need to add planner buttons after results are loaded
+
+        // Close planner when clicking outside
+        document.addEventListener('click', function(e) {
+            const plannerPopup = document.getElementById('plannerPopup');
+            const floatingPlanner = document.getElementById('floatingPlanner');
+            
+            if (isPlannerOpen && !plannerPopup.contains(e.target) && !floatingPlanner.contains(e.target)) {
+                closePlanner();
+            }
+        });
+
+        // Close planner with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isPlannerOpen) {
+                closePlanner();
+            }
+        });
+
+        // Global event listener for any collapse being shown
+        document.addEventListener('shown.bs.collapse', function(e) {
+            // Check if this is a sections collapse
+            if (e.target.id && e.target.id.startsWith('sections-')) {
+                setTimeout(addPlannerButtons, 100);
             }
         });
     </script>

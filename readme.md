@@ -1,6 +1,4 @@
-# Rutgers Course Search
-
-A Flask web application for searching Rutgers University course information in real-time.
+[Rutgers Course Search](https://rutgers.replit.app/)
 
 ## Features
 - Real-time course data from Rutgers API

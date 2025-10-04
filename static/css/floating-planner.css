@@ -350,7 +350,7 @@
 
 .calendar-header {
     display: grid;
-    grid-template-columns: 80px repeat(7, 1fr);
+    grid-template-columns: 80px repeat(5, 1fr);
     background: #f8fafc;
     border-bottom: 2px solid #e5e7eb;
     font-weight: 600;
@@ -388,7 +388,7 @@
 
 .calendar-row {
     display: grid;
-    grid-template-columns: 80px repeat(7, 1fr);
+    grid-template-columns: 80px repeat(5, 1fr);
     min-height: 45px;
     border-bottom: 1px solid #e5e7eb;
 }
@@ -424,30 +424,6 @@
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    position: relative;
-    overflow: hidden;
-}
-
-.course-block-closed {
-    background: #6c757d !important;
-    opacity: 0.6;
-    position: relative;
-}
-
-.course-block-closed::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 2px,
-        rgba(255, 255, 255, 0.1) 2px,
-        rgba(255, 255, 255, 0.1) 4px
-    );
 }
 
 .course-block:hover {
@@ -478,13 +454,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 400;
-}
-
-.course-section {
-    font-size: 9px;
-    opacity: 0.7;
-    font-weight: 400;
-    margin-top: 2px;
 }
 
 /* List View */
@@ -895,11 +864,11 @@
     }
     
     .calendar-header {
-        grid-template-columns: 60px repeat(7, 1fr);
+        grid-template-columns: 60px repeat(5, 1fr);
     }
     
     .calendar-row {
-        grid-template-columns: 60px repeat(7, 1fr);
+        grid-template-columns: 60px repeat(5, 1fr);
     }
     
     .time-column {

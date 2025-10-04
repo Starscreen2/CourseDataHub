@@ -92,36 +92,6 @@ function exportSchedule() {
     showNotification('Schedule exported successfully!', 'success');
 }
 
-function exportToWebReg() {
-    if (scheduledCourses.length === 0) {
-        showNotification('No courses to export to WebReg', 'warning');
-        return;
-    }
-
-    // Extract index numbers from scheduled courses
-    const indexNumbers = scheduledCourses
-        .filter(course => course.selectedSection && course.selectedSection.index)
-        .map(course => course.selectedSection.index);
-    
-    if (indexNumbers.length === 0) {
-        showNotification('No valid index numbers found', 'warning');
-        return;
-    }
-
-    // Create WebReg URL
-    const indexList = indexNumbers.join(',');
-    const webRegUrl = `https://sims.rutgers.edu/webreg/editSchedule.htm?indexList=${indexList}`;
-    
-    // Copy to clipboard and open in new tab
-    navigator.clipboard.writeText(webRegUrl).then(() => {
-        showNotification('WebReg link copied to clipboard!', 'success');
-        window.open(webRegUrl, '_blank');
-    }).catch(() => {
-        showNotification('Failed to copy link, but opening WebReg...', 'info');
-        window.open(webRegUrl, '_blank');
-    });
-}
-
 // View Management
 function switchView(view) {
     const calendarView = document.getElementById('calendarView');
@@ -144,28 +114,6 @@ function switchView(view) {
 }
 
 // Calendar Functions
-function parseTimeString(timeStr) {
-    if (!timeStr) return null;
-    
-    // Handle formats like "9:00 AM", "12:00 PM", "1:30 PM", etc.
-    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (match) {
-        let hours = parseInt(match[1]);
-        const minutes = parseInt(match[2]);
-        const period = match[3].toUpperCase();
-        
-        if (period === 'AM' && hours === 12) {
-            hours = 0;
-        } else if (period === 'PM' && hours !== 12) {
-            hours += 12;
-        }
-        
-        return hours * 60 + minutes; // Return minutes since midnight
-    }
-    
-    return null;
-}
-
 function generateCalendarGrid() {
     const calendarGrid = document.getElementById('calendarGrid');
     if (!calendarGrid) return;
@@ -198,8 +146,8 @@ function generateCalendarGrid() {
         timeLabel.textContent = time;
         row.appendChild(timeLabel);
 
-        // Day cells (Monday = 0, Tuesday = 1, ..., Sunday = 6)
-        for (let day = 0; day < 7; day++) {
+        // Day cells
+        for (let day = 0; day < 5; day++) {
             const cell = document.createElement('div');
             cell.className = 'day-cell';
             cell.setAttribute('data-day', day);
@@ -217,82 +165,38 @@ function generateCalendarGrid() {
 function addCoursesToCalendar() {
     console.log('Adding courses to calendar:', scheduledCourses);
     
-    // Clear existing course blocks first
-    const existingBlocks = document.querySelectorAll('.course-block');
-    existingBlocks.forEach(block => block.remove());
-    
     scheduledCourses.forEach(course => {
         if (course.selectedSection && course.selectedSection.meetingTimes) {
             course.selectedSection.meetingTimes.forEach(meeting => {
-                const dayMap = { 
-                    'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 
-                    'Saturday': 5, 'Sunday': 6 
-                };
+                const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
                 const dayIndex = dayMap[meeting.day];
                 if (dayIndex !== undefined) {
                     const timeSlot = meeting.startTime.formatted;
-                    console.log('Looking for cell:', dayIndex, timeSlot, 'Course:', course.courseString);
+                    console.log('Looking for cell:', dayIndex, timeSlot);
                     
                     // Try to find the cell with the exact time match
                     let cell = document.querySelector(`[data-day="${dayIndex}"][data-time="${timeSlot}"]`);
                     
-                    // If not found, try to find the closest time slot with improved matching
+                    // If not found, try to find the closest time slot
                     if (!cell) {
                         const allCells = document.querySelectorAll(`[data-day="${dayIndex}"]`);
-                        let bestMatch = null;
-                        let minTimeDiff = Infinity;
-                        
-                        // Parse the target time
-                        const targetTime = parseTimeString(timeSlot);
-                        
                         for (let i = 0; i < allCells.length; i++) {
                             const cellTime = allCells[i].dataset.time;
-                            if (cellTime) {
-                                const cellTimeParsed = parseTimeString(cellTime);
-                                if (cellTimeParsed) {
-                                    const timeDiff = Math.abs(cellTimeParsed - targetTime);
-                                    if (timeDiff < minTimeDiff) {
-                                        minTimeDiff = timeDiff;
-                                        bestMatch = allCells[i];
-                                    }
-                                }
+                            if (cellTime && cellTime.includes(timeSlot.split(' ')[0])) {
+                                cell = allCells[i];
+                                break;
                             }
                         }
-                        
-                        cell = bestMatch;
                     }
                     
                     if (cell) {
                         console.log('Found cell, adding course block');
                         const courseBlock = document.createElement('div');
                         courseBlock.className = 'course-block';
-                        
-                        // Add campus-based color coding
-                        const campusColors = {
-                            'College Ave': '#dc3545',
-                            'Busch': '#0d6efd', 
-                            'Livingston': '#198754',
-                            'Cook/Douglass': '#fd7e14',
-                            'Online': '#6f42c1'
-                        };
-                        
-                        // Determine campus color
-                        const campus = meeting.campus || 'Online';
-                        const campusColor = campusColors[campus] || '#6f42c1';
-                        
-                        // Add closed course styling
-                        const isClosed = course.selectedSection.status.toLowerCase() === 'closed';
-                        const closedClass = isClosed ? 'course-block-closed' : '';
-                        
-                        courseBlock.className = `course-block ${closedClass}`;
-                        courseBlock.style.backgroundColor = isClosed ? '#6c757d' : campusColor;
-                        courseBlock.style.opacity = isClosed ? '0.6' : '1';
-                        
                         courseBlock.innerHTML = `
                             <div class="course-title">${course.courseString}</div>
                             <div class="course-time">${meeting.startTime.formatted} - ${meeting.endTime.formatted}</div>
-                            <div class="course-location">${meeting.building} ${meeting.campus || ''}</div>
-                            <div class="course-section">Section ${course.selectedSection.number}</div>
+                            <div class="course-location">${meeting.building}</div>
                         `;
                         cell.appendChild(courseBlock);
                     } else {

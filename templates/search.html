@@ -203,8 +203,6 @@
                             <div class="day-header">Wednesday</div>
                             <div class="day-header">Thursday</div>
                             <div class="day-header">Friday</div>
-                            <div class="day-header">Saturday</div>
-                            <div class="day-header">Sunday</div>
                         </div>
                         <div class="calendar-grid" id="calendarGrid">
                             <!-- Time slots will be generated here -->
@@ -235,11 +233,8 @@
 
             <!-- Footer -->
             <div class="planner-footer">
-                <button class="btn btn-primary" onclick="exportToWebReg()">
-                    <i class="bi bi-calendar-check me-1"></i>Export to WebReg
-                </button>
-                <button class="btn btn-outline-primary" onclick="exportSchedule()">
-                    <i class="bi bi-download me-1"></i>Export JSON
+                <button class="btn btn-primary" onclick="window.open('https://sims.rutgers.edu/webreg/', '_blank')">
+                    <i class="bi bi-calendar-check me-1"></i>Register in WebReg
                 </button>
                 <button class="btn btn-outline-secondary" onclick="copyScheduleLink()">
                     <i class="bi bi-link-45deg me-1"></i>Copy Link

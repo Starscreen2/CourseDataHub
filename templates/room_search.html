@@ -7,8 +7,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=2">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/course-planner.js"></script>
 </head>
 <body>
     <!-- Add Rutgers Navigation Bar -->
@@ -25,7 +27,7 @@
                         <i class="bi bi-link-45deg me-2"></i>Links
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="linksDropdown">
-                        <li><a class="dropdown-item" href="https://rutgers-course-planner.vercel.app/" target="_blank">Schedule Planner</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPlanner(); return false;">Course Planner</a></li>
                         <li><a class="dropdown-item" href="https://rutgers-dining.vercel.app/" target="_blank">Meal Planner</a></li>
                         <li><a class="dropdown-item" href="https://scheduling.rutgers.edu/scheduling/academic-calendar" target="_blank">Academic Calendar</a></li>
                         <li><a class="dropdown-item" href="https://ibrahimmudassar.github.io/Rutgers-Salaries/" target="_blank">Rutgers Salaries</a></li>
@@ -751,5 +753,147 @@
             }
         });
     </script>
+
+    <!-- Floating Course Planner Button -->
+    <div id="floatingPlanner" class="floating-planner">
+        <div class="floating-button-container">
+            <!-- Course count badge -->
+            <div id="courseCountBadge" class="course-count-badge" style="display: none;">
+                <span id="courseCount">0</span>
+            </div>
+            
+            <!-- Main floating button -->
+            <button id="plannerButton" class="floating-button" onclick="togglePlanner()">
+                <i class="bi bi-calendar3"></i>
+                <span class="button-text">Planner</span>
+            </button>
+            
+            <!-- Tooltip -->
+            <div class="floating-tooltip">
+                <span id="tooltipText">Open Calendar</span>
+                <div class="tooltip-arrow"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Planner Popup -->
+    <div id="plannerPopup" class="planner-popup">
+        <div class="planner-backdrop" onclick="closePlanner()"></div>
+        <div class="planner-content">
+            <!-- Header -->
+            <div class="planner-header">
+                <div class="planner-title">
+                    <h1>Rutgers Course Planner</h1>
+                    <p>Plan and visualize your class schedule</p>
+                </div>
+                <div class="planner-actions">
+                    <button class="btn btn-primary" onclick="closePlanner()">
+                        <i class="bi bi-search me-1"></i>Search Classes
+                    </button>
+                    <button class="btn btn-close" onclick="closePlanner()"></button>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="planner-controls">
+                <div class="schedule-info">
+                    <span id="plannerSubtitle">0 courses in schedule</span>
+                </div>
+                <div class="controls-right">
+                    <div class="view-toggle">
+                        <button class="view-btn active" id="calendarViewBtn" onclick="switchView('calendar')">
+                            <i class="bi bi-calendar3 me-1"></i>Calendar View
+                        </button>
+                        <button class="view-btn" id="listViewBtn" onclick="switchView('list')">
+                            <i class="bi bi-list me-1"></i>List View
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportSchedule()">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Campus Colors Legend -->
+            <div class="campus-legend">
+                <span class="legend-label">Campus Colors:</span>
+                <div class="campus-colors">
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #dc3545;"></div>
+                        <span>College Ave</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #0d6efd;"></div>
+                        <span>Busch</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #198754;"></div>
+                        <span>Livingston</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #fd7e14;"></div>
+                        <span>Cook/Douglass</span>
+                    </div>
+                    <div class="campus-color-item">
+                        <div class="color-dot" style="background-color: #6f42c1;"></div>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="planner-body">
+                <!-- Calendar View -->
+                <div id="calendarView" class="calendar-view">
+                    <div class="weekly-calendar">
+                        <div class="calendar-header">
+                            <div class="time-column"></div>
+                            <div class="day-header">Monday</div>
+                            <div class="day-header">Tuesday</div>
+                            <div class="day-header">Wednesday</div>
+                            <div class="day-header">Thursday</div>
+                            <div class="day-header">Friday</div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Time slots will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List View -->
+                <div id="listView" class="list-view" style="display: none;">
+                    <div id="emptyState" class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <h3>No courses scheduled</h3>
+                        <p>Start building your schedule by searching for courses and adding them to your planner.</p>
+                        <button class="btn btn-primary" onclick="closePlanner()">
+                            <i class="bi bi-search me-2"></i>Search Courses
+                        </button>
+                    </div>
+
+                    <div id="courseList" class="course-list" style="display: none;">
+                        <div id="scheduledCoursesList" class="courses-grid">
+                            <!-- Courses will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="planner-footer">
+                <button class="btn btn-primary" onclick="window.open('https://sims.rutgers.edu/webreg/', '_blank')">
+                    <i class="bi bi-calendar-check me-1"></i>Register in WebReg
+                </button>
+                <button class="btn btn-outline-secondary" onclick="copyScheduleLink()">
+                    <i class="bi bi-link-45deg me-1"></i>Copy Link
+                </button>
+                <button class="btn btn-outline-danger" onclick="clearSchedule()">
+                    <i class="bi bi-trash me-1"></i>Clear Calendar
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

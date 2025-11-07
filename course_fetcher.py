@@ -285,6 +285,11 @@ class CourseFetcher:
                 course_groups[course_string] = []
             course_groups[course_string].append(course)
             
+            # Exact match on course title (Tier 1 - highest priority)
+            if query == title:
+                exact_matches.append((100, course_string))
+                continue
+            
             # Special handling for CS (Computer Science) department
             # Common mistake: "cs" searches matching many unrelated courses
             if query == "cs" and subject != "198":

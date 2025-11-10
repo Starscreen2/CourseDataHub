@@ -384,6 +384,7 @@
     max-height: 60vh;
     min-height: 500px;
     padding-bottom: 200px;
+    position: relative;
 }
 
 .calendar-row {
@@ -412,6 +413,18 @@
     padding: 4px;
 }
 
+.day-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.day-overlay .course-block {
+    pointer-events: auto;
+}
+
 .course-block {
     background: #cc0000;
     color: white;
@@ -419,11 +432,13 @@
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 500;
-    margin: 2px;
+    margin: 0;
     box-shadow: 0 4px 8px rgba(204, 0, 0, 0.3);
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid rgba(255, 255, 255, 0.2);
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .course-block:hover {
@@ -433,17 +448,19 @@
 
 .course-title {
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 13px;
+    line-height: 1.2;
 }
 
 .course-time {
     font-size: 11px;
-    opacity: 0.9;
+    line-height: 1.2;
     margin-bottom: 2px;
+    opacity: 0.9;
     font-weight: 500;
 }
 
@@ -454,6 +471,160 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 400;
+}
+
+/* Course Popup */
+.course-popup {
+    position: fixed;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    max-width: 360px;
+    min-width: 300px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.course-popup.popup-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.popup-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-top: 4px solid #cc0000;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.popup-course-code {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.popup-course-title {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+    font-weight: 400;
+}
+
+.popup-body {
+    padding: 16px 20px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.popup-section {
+    margin-bottom: 20px;
+}
+
+.popup-section:last-child {
+    margin-bottom: 0;
+}
+
+.popup-section-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.popup-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+}
+
+.popup-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.popup-label {
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.popup-value {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.popup-value.status-open {
+    color: #198754;
+    font-weight: 600;
+}
+
+.popup-value.status-closed {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.popup-meetings {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.popup-meeting-item {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #cc0000;
+}
+
+.popup-meeting-day {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.popup-meeting-time {
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.popup-meeting-location {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Popup Animation */
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.course-popup.popup-visible {
+    animation: popupFadeIn 0.2s ease-out;
 }
 
 /* List View */
@@ -905,6 +1076,27 @@
     .floating-tooltip {
         display: none;
     }
+    
+    /* Hide popup on mobile or make it smaller */
+    .course-popup {
+        max-width: calc(100vw - 40px);
+        min-width: 280px;
+        max-height: 70vh;
+    }
+    
+    .popup-body {
+        max-height: 60vh;
+        padding: 12px 16px;
+    }
+    
+    .popup-header {
+        padding: 12px 16px;
+    }
+    
+    .popup-details-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
 }
 
 /* Dark mode support */
@@ -946,6 +1138,54 @@
     }
     
     .course-details p {
+        color: #9ca3af;
+    }
+    
+    /* Popup dark mode */
+    .course-popup {
+        background: #374151;
+        border-color: #4b5563;
+    }
+    
+    .popup-header {
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        border-bottom-color: #4b5563;
+    }
+    
+    .popup-course-code {
+        color: #f9fafb;
+    }
+    
+    .popup-course-title {
+        color: #d1d5db;
+    }
+    
+    .popup-section-header {
+        color: #9ca3af;
+    }
+    
+    .popup-label {
+        color: #9ca3af;
+    }
+    
+    .popup-value {
+        color: #f9fafb;
+    }
+    
+    .popup-meeting-item {
+        background: #4b5563;
+        border-left-color: #dc3545;
+    }
+    
+    .popup-meeting-day {
+        color: #f9fafb;
+    }
+    
+    .popup-meeting-time {
+        color: #d1d5db;
+    }
+    
+    .popup-meeting-location {
         color: #9ca3af;
     }
 }

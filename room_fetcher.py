@@ -3,6 +3,8 @@ import datetime
 from typing import Dict, List, Optional
 from course_fetcher import CourseFetcher
 from rapidfuzz import fuzz, process
+from utils.constants import CAMPUS_ID_TO_NAME, CAMPUS_ABBREV_TO_NAME
+from utils.fuzzy_utils import get_best_fuzzy_score
 
 # Rutgers building coordinates (you can expand this dictionary)
 BUILDING_COORDINATES = {
@@ -175,14 +177,8 @@ class RoomFetcher:
                     # Normalize to string for fuzzy matching
                     field_value = str(room[field]).lower()
                     
-                    # Calculate scores with different fuzzy algorithms
-                    ratio_score = fuzz.ratio(query_lower, field_value) 
-                    partial_score = fuzz.partial_ratio(query_lower, field_value)
-                    token_sort_score = fuzz.token_sort_ratio(query_lower, field_value)
-                    token_set_score = fuzz.token_set_ratio(query_lower, field_value)
-                    
-                    # Use the highest score
-                    field_score = max(ratio_score, partial_score, token_sort_score, token_set_score)
+                    # Use utility function to get best fuzzy score
+                    field_score = get_best_fuzzy_score(query_lower, field_value)
                     
                     # Apply field weight and keep the highest overall score
                     weighted_score = (field_score * weight) / 100
@@ -287,25 +283,8 @@ class RoomFetcher:
         if not campus_filter:
             return rooms
             
-        campus_code_map = {
-            "1": "College Ave",
-            "2": "Busch",
-            "3": "Livingston", 
-            "4": "Cook/Doug"
-        }
-        
-        # Additional mappings for different code formats
-        campus_abbrev_map = {
-            "CA": "College Ave",
-            "BU": "Busch",
-            "LIV": "Livingston",
-            "CD": "Cook/Doug",
-            "C/D": "Cook/Doug",
-            "D/C": "Cook/Doug"
-        }
-        
-        # Get the campus name if a code was provided
-        campus_name = campus_code_map.get(campus_filter, campus_filter)
+        # Get the campus name if a code was provided, using shared constants
+        campus_name = CAMPUS_ID_TO_NAME.get(campus_filter, campus_filter)
         
         # Log a sample room to see its structure
         if rooms and len(rooms) > 0:
@@ -332,14 +311,14 @@ class RoomFetcher:
             
             # If we have a campus code from the room, check all possible mappings
             elif room_campus_code:
-                # Check if code maps directly
-                mapped_name = campus_code_map.get(room_campus_code)
+                # Check if code maps directly using shared constants
+                mapped_name = CAMPUS_ID_TO_NAME.get(room_campus_code)
                 if mapped_name and mapped_name == campus_name:
                     is_match = True
                     
-                # Check abbreviation mappings
+                # Check abbreviation mappings using shared constants
                 elif not mapped_name:
-                    mapped_name = campus_abbrev_map.get(room_campus_code)
+                    mapped_name = CAMPUS_ABBREV_TO_NAME.get(room_campus_code)
                     if mapped_name and mapped_name == campus_name:
                         is_match = True
             

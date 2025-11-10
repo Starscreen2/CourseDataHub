@@ -1,6 +1,11 @@
 import os
 import json
 import csv
+from utils.name_utils import (
+    normalize_text,
+    convert_last_first_to_first_last,
+    extract_name_components
+)
 
 class SalaryData:
     """Handles loading and retrieving Rutgers instructor salaries."""
@@ -43,43 +48,16 @@ class SalaryData:
     def get_salary_by_instructor(self, name):
         """Search for an instructor's salary by name, handling different name formats, including partial matches."""
 
-        # Normalize function (strip spaces and convert to lowercase)
-        def normalize(text):
-            return text.lower().strip()
-
-        # Convert "LAST, FIRST" to "First Last"
-        def convert_last_first(name):
-            parts = name.split(", ")
-            return f"{parts[1]} {parts[0]}" if len(parts) == 2 else name
-            
-        # Handle "LAST, FIRST MIDDLE" format as well
-        def extract_components(name):
-            components = []
-            # Handle lastname, firstname format
-            if ", " in name:
-                parts = name.split(", ", 1)
-                last_name = parts[0].strip()
-                components.append(last_name)
-                
-                if len(parts) > 1:
-                    first_parts = parts[1].split()
-                    components.extend(first_parts)
-            else:
-                # Handle space-separated name
-                components = name.split()
-                
-            return [comp.strip() for comp in components if comp.strip()]
-
-        normalized_name = normalize(name)
-        converted_name = normalize(convert_last_first(name))
-        name_components = extract_components(name)
+        normalized_name = normalize_text(name)
+        converted_name = normalize_text(convert_last_first_to_first_last(name))
+        name_components = extract_name_components(name)
         
         print(f"🔎 Searching for: {normalized_name} OR {converted_name}")
 
         # First: Exact match search
         results = [
             entry for entry in self.salaries
-            if normalize(entry.get("Name", "")) in [normalized_name, converted_name]
+            if normalize_text(entry.get("Name", "")) in [normalized_name, converted_name]
         ]
 
         if results:
@@ -95,10 +73,10 @@ class SalaryData:
             
             for component in name_components:
                 if len(component) >= 3:  # Only use components with at least 3 characters
-                    component = normalize(component)
+                    component = normalize_text(component)
                     matches = [
                         entry for entry in self.salaries
-                        if component in normalize(entry.get("Name", "")).split()
+                        if component in normalize_text(entry.get("Name", "")).split()
                     ]
                     all_matches.extend(matches)
             
@@ -118,7 +96,7 @@ class SalaryData:
         if " " not in normalized_name:
             results = [
                 entry for entry in self.salaries
-                if normalized_name in normalize(entry.get("Name", "")).split()
+                if normalized_name in normalize_text(entry.get("Name", "")).split()
             ]
 
             if results:

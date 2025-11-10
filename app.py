@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from course_fetcher import CourseFetcher
 from room_fetcher import RoomFetcher  # Import the new RoomFetcher class
 from salary_api import SalaryData  # Import SalaryData class for salaries
+from utils.flask_utils import get_request_params
 import logging
 
 # Configure logging
@@ -55,10 +56,8 @@ def select_parameters():
 
 @app.route('/search')
 def search():
-    year = request.args.get('year', '2025')
-    term = request.args.get('term', '1')
-    campus = request.args.get('campus', 'NB')
-    return render_template('search.html', year=year, term=term, campus=campus)
+    params = get_request_params()
+    return render_template('search.html', year=params['year'], term=params['term'], campus=params['campus'])
 
 @app.route('/api/health')
 @limiter.exempt
@@ -72,12 +71,10 @@ def health_check():
 @limiter.limit("100 per minute")
 def get_courses():
     try:
-        year = request.args.get('year', '2025')
-        term = request.args.get('term', '1')
-        campus = request.args.get('campus', 'NB')
+        params = get_request_params()
         search = request.args.get('search', '')
 
-        courses = course_fetcher.get_courses(search=search, year=year, term=term, campus=campus)
+        courses = course_fetcher.get_courses(search=search, year=params['year'], term=params['term'], campus=params['campus'])
         return jsonify({
             "status": "success",
             "data": courses,
@@ -135,25 +132,21 @@ def get_salary():
 @app.route('/room-search')
 def room_search_page():
     """Render the room search page"""
-    year = request.args.get('year', '2025')
-    term = request.args.get('term', '1')
-    campus = request.args.get('campus', 'NB')
-    return render_template('room_search.html', year=year, term=term, campus=campus)
+    params = get_request_params()
+    return render_template('room_search.html', year=params['year'], term=params['term'], campus=params['campus'])
 
 @app.route('/room-details')
 def room_details_page():
     """Render the room details page with schedule"""
-    year = request.args.get('year', '2025')
-    term = request.args.get('term', '1')
-    campus = request.args.get('campus', 'NB')
+    params = get_request_params()
     building = request.args.get('building', '')
     room = request.args.get('room', '')
     
     if not building or not room:
-        return render_template('room_search.html', year=year, term=term, campus=campus, 
+        return render_template('room_search.html', year=params['year'], term=params['term'], campus=params['campus'], 
                               error="Building and room must be specified")
     
-    return render_template('room_details.html', year=year, term=term, campus=campus,
+    return render_template('room_details.html', year=params['year'], term=params['term'], campus=params['campus'],
                           building=building, room=room)
 
 @app.route('/api/rooms')
@@ -161,9 +154,7 @@ def room_details_page():
 def get_rooms():
     """API endpoint to get rooms matching a query, with optional availability filtering"""
     try:
-        year = request.args.get('year', '2025')
-        term = request.args.get('term', '1')
-        campus = request.args.get('campus', 'NB')
+        params = get_request_params()
         search = request.args.get('search', '')
         
         # Get availability filter parameters
@@ -199,18 +190,18 @@ def get_rooms():
                 day=day, 
                 start_time=start_time,
                 end_time=end_time,
-                year=year, 
-                term=term, 
-                campus=campus,
+                year=params['year'], 
+                term=params['term'], 
+                campus=params['campus'],
                 search=search
             )
         else:
             # Regular room search with filters
             rooms = room_fetcher.search_rooms(
                 search, 
-                year=year, 
-                term=term, 
-                campus=campus,
+                year=params['year'], 
+                term=params['term'], 
+                campus=params['campus'],
                 building_types=building_types if building_types else None,
                 campus_filters=campus_filters if campus_filters else None
             )
@@ -236,9 +227,7 @@ def get_rooms():
 def get_room_schedule():
     """API endpoint to get the schedule for a specific room"""
     try:
-        year = request.args.get('year', '2025')
-        term = request.args.get('term', '1')
-        campus = request.args.get('campus', 'NB')
+        params = get_request_params()
         building = request.args.get('building', '')
         room = request.args.get('room', '')
         
@@ -249,7 +238,7 @@ def get_room_schedule():
             }), 400
         
         room_schedule = room_fetcher.get_room_schedule(
-            building, room, year=year, term=term, campus=campus
+            building, room, year=params['year'], term=params['term'], campus=params['campus']
         )
         
         return jsonify({
@@ -263,7 +252,3 @@ def get_room_schedule():
             "status": "error",
             "message": "Failed to get room schedule"
         }), 500
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)

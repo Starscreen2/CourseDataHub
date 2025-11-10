@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Get current URL parameters to maintain consistent year/term/campus values
         const urlParams = new URLSearchParams(window.location.search);
-        const year = urlParams.get('year') || '2025';
+        const year = urlParams.get('year') || '2026';
         const term = urlParams.get('term') || '1';
         const campus = urlParams.get('campus') || 'NB';
         

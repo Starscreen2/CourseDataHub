@@ -4,7 +4,7 @@ from flask import request
 from typing import Dict
 
 
-def get_request_params(default_year: str = "2025", 
+def get_request_params(default_year: str = "2026", 
                       default_term: str = "1", 
                       default_campus: str = "NB") -> Dict[str, str]:
     """

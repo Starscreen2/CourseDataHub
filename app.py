@@ -73,8 +73,95 @@ def get_courses():
     try:
         params = get_request_params()
         search = request.args.get('search', '')
+        
+        # Extract filter parameters
+        filter_params = {}
+        
+        # Section status filters
+        status_filters = []
+        if request.args.get('status_open', '').lower() == 'true':
+            status_filters.append('open')
+        if request.args.get('status_closed', '').lower() == 'true':
+            status_filters.append('closed')
+        if status_filters:
+            filter_params['status'] = status_filters
+        
+        # Course type filters
+        course_types = []
+        if request.args.get('type_traditional', '').lower() == 'true':
+            course_types.append('traditional')
+        if request.args.get('type_hybrid', '').lower() == 'true':
+            course_types.append('hybrid')
+        if request.args.get('type_online', '').lower() == 'true':
+            course_types.append('online')
+        if course_types:
+            filter_params['course_type'] = course_types
+        
+        # Day filters
+        days = []
+        if request.args.get('day_m', '').lower() == 'true':
+            days.append('M')
+        if request.args.get('day_t', '').lower() == 'true':
+            days.append('T')
+        if request.args.get('day_w', '').lower() == 'true':
+            days.append('W')
+        if request.args.get('day_h', '').lower() == 'true':
+            days.append('H')
+        if request.args.get('day_f', '').lower() == 'true':
+            days.append('F')
+        if request.args.get('day_weekend', '').lower() == 'true':
+            days.append('weekend')
+        if days:
+            filter_params['days'] = days
+        
+        # Time range filters
+        time_ranges = []
+        if request.args.get('time_morning', '').lower() == 'true':
+            time_ranges.append('morning')
+        if request.args.get('time_afternoon', '').lower() == 'true':
+            time_ranges.append('afternoon')
+        if request.args.get('time_evening', '').lower() == 'true':
+            time_ranges.append('evening')
+        if time_ranges:
+            filter_params['time_range'] = time_ranges
+        
+        # Campus filters
+        campus_filters = []
+        if request.args.get('campus_college_ave', '').lower() == 'true':
+            campus_filters.append('College Ave')
+        if request.args.get('campus_busch', '').lower() == 'true':
+            campus_filters.append('Busch')
+        if request.args.get('campus_livingston', '').lower() == 'true':
+            campus_filters.append('Livingston')
+        if request.args.get('campus_cook_doug', '').lower() == 'true':
+            campus_filters.append('Cook/Doug')
+        if request.args.get('campus_online', '').lower() == 'true':
+            campus_filters.append('Online')
+        if campus_filters:
+            filter_params['campus'] = campus_filters
+        
+        # School/Unit filter
+        school = request.args.get('school', '')
+        if school:
+            filter_params['school'] = school
+        
+        # Core code filter
+        core_code = request.args.get('core_code', '')
+        if core_code:
+            filter_params['core_code'] = core_code
+        
+        # Subject filter
+        subject = request.args.get('subject', '')
+        if subject:
+            filter_params['subject'] = subject
 
-        courses = course_fetcher.get_courses(search=search, year=params['year'], term=params['term'], campus=params['campus'])
+        courses = course_fetcher.get_courses(
+            search=search, 
+            year=params['year'], 
+            term=params['term'], 
+            campus=params['campus'],
+            filters=filter_params if filter_params else None
+        )
         return jsonify({
             "status": "success",
             "data": courses,

@@ -72,6 +72,302 @@
             </li>
         </ul>
 
+        <!-- Filter Panel -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <button class="btn btn-link text-decoration-none w-100 text-start p-0" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="false" aria-controls="filterPanel">
+                    <i class="bi bi-funnel me-2"></i>Filters
+                    <i class="bi bi-chevron-down float-end" id="filterChevron"></i>
+                </button>
+            </div>
+            <div class="collapse" id="filterPanel">
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Section Status -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">Section Status</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="statusOpen" checked>
+                                <label class="form-check-label" for="statusOpen">Open</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="statusClosed" checked>
+                                <label class="form-check-label" for="statusClosed">Closed</label>
+                            </div>
+                        </div>
+
+                        <!-- Course Types -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">Course Types</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="typeTraditional">
+                                <label class="form-check-label" for="typeTraditional">Traditional/Face-to-Face</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="typeHybrid">
+                                <label class="form-check-label" for="typeHybrid">Hybrid</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="typeOnline">
+                                <label class="form-check-label" for="typeOnline">Online & Remote Instruction</label>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="row">
+                        <!-- Campus Location -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">Campus Location</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campusCollegeAve">
+                                <label class="form-check-label" for="campusCollegeAve">College Avenue</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campusBusch">
+                                <label class="form-check-label" for="campusBusch">Busch</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campusLivingston">
+                                <label class="form-check-label" for="campusLivingston">Livingston</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campusCookDoug">
+                                <label class="form-check-label" for="campusCookDoug">C/D (Cook/Douglass)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="campusOnline">
+                                <label class="form-check-label" for="campusOnline">Online</label>
+                            </div>
+                        </div>
+
+                        <!-- School/Unit -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">School/Unit</label>
+                            <select class="form-select" id="schoolFilter">
+                                <option value="">All Schools</option>
+                                <option value="01">01 - School of Arts & Sciences</option>
+                                <option value="03">03 - Military Science</option>
+                                <option value="04">04 - School of Communication & Info (U)</option>
+                                <option value="05">05 - Graduate School of Education (U)</option>
+                                <option value="07">07 - Mason Gross School of the Arts (U)</option>
+                                <option value="09">09 - School of Social Work (U)</option>
+                                <option value="10">10 - Bloustein School of Planning (U)</option>
+                                <option value="11">11 - School of Environmental & Biological Sci</option>
+                                <option value="13">13 - Grad School of Applied & Prof Psych (U)</option>
+                                <option value="14">14 - School of Engineering</option>
+                                <option value="30">30 - Ernest Mario School of Pharmacy (U)</option>
+                                <option value="33">33 - Rutgers Business School- NB campus (U)</option>
+                                <option value="37">37 - School of Management & Labor Rel (U)</option>
+                                <option value="77">77 - School of Nursing - New Brunswick (U)</option>
+                            </select>
+                        </div>
+
+                        <!-- Core Codes -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">Core Code</label>
+                            <select class="form-select" id="coreCodeFilter">
+                                <option value="">All Core Codes</option>
+                                <option value="CE">CE - Community Engagement</option>
+                                <option value="AHo">AHo - Philosophical and Theoretical Issues</option>
+                                <option value="AHp">AHp - Arts and Literatures</option>
+                                <option value="AHq">AHq - Nature of Languages</option>
+                                <option value="AHr">AHr - Critical Creative Expression</option>
+                                <option value="CCD">CCD - Diversities and Social Inequalities</option>
+                                <option value="CCO">CCO - Our Common Future</option>
+                                <option value="HST">HST - Historical Analysis</option>
+                                <option value="NS">NS - Natural Sciences</option>
+                                <option value="QQ">QQ - Quantitative Information</option>
+                                <option value="QR">QR - Mathematical or Formal Reasoning</option>
+                                <option value="WC">WC - Writing and Communication</option>
+                                <option value="WCr">WCr - Writing and Communication, Revision</option>
+                                <option value="WCd">WCd - Writing and Communication in a Discipline</option>
+                                <option value="ITR">ITR - Information Technology and Research</option>
+                                <option value="SCL">SCL - Social Analysis</option>
+                                <option value="ECN">ECN - Economic Analysis (SEBS Only)</option>
+                                <option value="GVT">GVT - Government/Regulatory Analysis (SEBS Only)</option>
+                                <option value="SOEHS">SOEHS - Approved Humanities/Social Science (SOE Only)</option>
+                            </select>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <label class="form-label fw-bold">Subject</label>
+                            <select class="form-select" id="subjectFilter">
+                                <option value="">All Subjects</option>
+                                <option value="010">Accounting (010)</option>
+                                <option value="011">Administrative Studies (011)</option>
+                                <option value="013">African, Middle Eastern, and South Asian Languages and Literatures (013)</option>
+                                <option value="014">Africana Studies (014)</option>
+                                <option value="016">African Studies (016)</option>
+                                <option value="020">Agriculture and Food Systems (020)</option>
+                                <option value="035">Agricultural and Natural Resource Management (035)</option>
+                                <option value="047">Alcohol Studies (047)</option>
+                                <option value="050">American Studies (050)</option>
+                                <option value="067">Animal Science (067)</option>
+                                <option value="070">Anthropology (070)</option>
+                                <option value="074">Arabic Languages (074)</option>
+                                <option value="078">Armenian (078)</option>
+                                <option value="080">Art (080)</option>
+                                <option value="081">Art (081)</option>
+                                <option value="082">Art History (082)</option>
+                                <option value="090">Arts and Sciences (090)</option>
+                                <option value="098">Asian Studies (098)</option>
+                                <option value="115">Biochemistry (115)</option>
+                                <option value="117">Bioenvironmental Engineering (117)</option>
+                                <option value="119">Biological Sciences (119)</option>
+                                <option value="122">Biomathematics (122)</option>
+                                <option value="125">Biomedical Engineering (125)</option>
+                                <option value="126">Biotechnology (126)</option>
+                                <option value="136">Business Analytics and Information Technology (136)</option>
+                                <option value="140">Business Law (140)</option>
+                                <option value="146">Cell Biology and Neuroscience (146)</option>
+                                <option value="155">Chemical and Biochemical Engineering (155)</option>
+                                <option value="158">Chemical Biology (158)</option>
+                                <option value="160">Chemistry (160)</option>
+                                <option value="165">Chinese (165)</option>
+                                <option value="175">Cinema Studies (175)</option>
+                                <option value="180">Civil and Environmental Engineering (180)</option>
+                                <option value="185">Cognitive Science (185)</option>
+                                <option value="189">Communication and Media Studies (189)</option>
+                                <option value="190">Classics (190)</option>
+                                <option value="192">Communication (192)</option>
+                                <option value="193">Community Health Outreach (193)</option>
+                                <option value="195">Comparative Literature (195)</option>
+                                <option value="198">Computer Science (198)</option>
+                                <option value="202">Criminal Justice (202)</option>
+                                <option value="203">Dance (203)</option>
+                                <option value="206">Dance (206)</option>
+                                <option value="207">Dance Education (207)</option>
+                                <option value="211">Filmmaking (211)</option>
+                                <option value="216">Ecology, Evolution and Natural Resources (216)</option>
+                                <option value="219">Data Science (219)</option>
+                                <option value="220">Economics (220)</option>
+                                <option value="300">Education (300)</option>
+                                <option value="332">Electrical and Computer Engineering (332)</option>
+                                <option value="355">English - Composition and Writing (355)</option>
+                                <option value="351">English - Creative Writing (351)</option>
+                                <option value="354">English - Film Studies (354)</option>
+                                <option value="356">English as a Second Language (356)</option>
+                                <option value="358">English - Literature (358)</option>
+                                <option value="359">English - Theories and Methods (359)</option>
+                                <option value="360">European Studies (360)</option>
+                                <option value="364">Educational Opportunity Fund (364)</option>
+                                <option value="370">Entomology (370)</option>
+                                <option value="373">Environmental and Business Economics (373)</option>
+                                <option value="374">Environmental Policy, Institutions and Behavior (374)</option>
+                                <option value="375">Environmental Sciences (375)</option>
+                                <option value="377">Exercise Science (377)</option>
+                                <option value="381">Environmental Studies (381)</option>
+                                <option value="382">Entrepreneurship (382)</option>
+                                <option value="390">Finance (390)</option>
+                                <option value="400">Food Science (400)</option>
+                                <option value="420">French (420)</option>
+                                <option value="440">General Engineering (440)</option>
+                                <option value="447">Genetics (447)</option>
+                                <option value="450">Geography (450)</option>
+                                <option value="460">Geological Sciences (460)</option>
+                                <option value="470">German (470)</option>
+                                <option value="489">Greek, Modern (489)</option>
+                                <option value="490">Greek (490)</option>
+                                <option value="501">Health Administration (501)</option>
+                                <option value="505">Hindi (505)</option>
+                                <option value="506">History - General/Comparative (506)</option>
+                                <option value="508">History - Africa, Asia, Latin America (508)</option>
+                                <option value="510">History (510)</option>
+                                <option value="512">History - American (512)</option>
+                                <option value="522">Ethics in Business Environment (522)</option>
+                                <option value="533">Human Resource Management (533)</option>
+                                <option value="535">Hungarian (535)</option>
+                                <option value="540">Industrial and Systems Engineering (540)</option>
+                                <option value="547">Information Technology and Informatics (547)</option>
+                                <option value="550">Landscape Architecture (550)</option>
+                                <option value="554">Interdisciplinary Studies (554)</option>
+                                <option value="556">Interdisciplinary Studies - Arts and Sciences (556)</option>
+                                <option value="557">Interdisciplinary - Mason Gross (557)</option>
+                                <option value="558">International Studies (558)</option>
+                                <option value="560">Italian (560)</option>
+                                <option value="563">Jewish Studies (563)</option>
+                                <option value="565">Japanese (565)</option>
+                                <option value="567">Journalism and Media Studies (567)</option>
+                                <option value="574">Korean (574)</option>
+                                <option value="575">Labor Studies (575)</option>
+                                <option value="580">Latin (580)</option>
+                                <option value="590">Latin American Studies (590)</option>
+                                <option value="595">Latino and Hispanic Caribbean Studies (595)</option>
+                                <option value="607">Leadership Skills (607)</option>
+                                <option value="615">Linguistics (615)</option>
+                                <option value="617">Languages and Cultures (617)</option>
+                                <option value="620">Management (620)</option>
+                                <option value="624">Management and Work (624)</option>
+                                <option value="628">Marine Sciences (628)</option>
+                                <option value="630">Marketing (630)</option>
+                                <option value="635">Materials Science and Engineering (635)</option>
+                                <option value="640">Mathematics (640)</option>
+                                <option value="650">Mechanical and Aerospace Engineering (650)</option>
+                                <option value="652">Medical Ethics and Policy (652)</option>
+                                <option value="667">Medieval Studies (667)</option>
+                                <option value="670">Meteorology (670)</option>
+                                <option value="680">Microbiology (680)</option>
+                                <option value="685">Middle Eastern and Islamic Studies (685)</option>
+                                <option value="690">Military Education, Air Force (690)</option>
+                                <option value="691">Military Education, Army (691)</option>
+                                <option value="692">Military Education, Navy (692)</option>
+                                <option value="694">Molecular Biology and Biochemistry (694)</option>
+                                <option value="700">Music (700)</option>
+                                <option value="701">Music, Applied (701)</option>
+                                <option value="705">Nursing (705)</option>
+                                <option value="709">Nutritional Sciences (709)</option>
+                                <option value="713">Organizational Leadership (713)</option>
+                                <option value="715">Pharmaceutical Chemistry (715)</option>
+                                <option value="718">Pharmacology, Cellular and Molecular (718)</option>
+                                <option value="720">Pharmacy (720)</option>
+                                <option value="721">Pharmaceutics (721)</option>
+                                <option value="723">Persian (723)</option>
+                                <option value="725">Pharmacy Practice and Administration (725)</option>
+                                <option value="730">Philosophy (730)</option>
+                                <option value="745">Physician Assistant (745)</option>
+                                <option value="750">Physics (750)</option>
+                                <option value="762">Planning and Public Policy (762)</option>
+                                <option value="775">Policy, Health, and Administration (775)</option>
+                                <option value="776">Plant Science (776)</option>
+                                <option value="787">Polish (787)</option>
+                                <option value="790">Political Science (790)</option>
+                                <option value="799">Supply Chain and Marketing Science (799)</option>
+                                <option value="810">Portuguese (810)</option>
+                                <option value="830">Psychology (830)</option>
+                                <option value="832">Public Health (832)</option>
+                                <option value="833">Public Policy (833)</option>
+                                <option value="840">Religion (840)</option>
+                                <option value="843">Public Administration and Management (843)</option>
+                                <option value="851">Real Estate (851)</option>
+                                <option value="860">Russian (860)</option>
+                                <option value="902">SEBS Internship (902)</option>
+                                <option value="904">Social Justice (904)</option>
+                                <option value="910">Social Work (910)</option>
+                                <option value="920">Sociology (920)</option>
+                                <option value="940">Spanish (940)</option>
+                                <option value="955">Sport Management (955)</option>
+                                <option value="959">Study Abroad (959)</option>
+                                <option value="960">Statistics (960)</option>
+                                <option value="965">Theater (965)</option>
+                                <option value="966">Theater Arts (966)</option>
+                                <option value="971">Urban Planning and Design (971)</option>
+                                <option value="973">Turkish (973)</option>
+                                <option value="975">Urban Studies and Community Development (975)</option>
+                                <option value="988">Women's, Gender, and Sexuality Studies (988)</option>
+                                <option value="991">World Languages (991)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-secondary" id="clearFilters">Clear Filters</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-form">
             <form id="searchForm">
                 <div class="form-group">
@@ -258,6 +554,38 @@
             }
         }
 
+        // Filter chevron toggle
+        const filterPanel = document.getElementById('filterPanel');
+        const filterChevron = document.getElementById('filterChevron');
+        if (filterPanel && filterChevron) {
+            filterPanel.addEventListener('show.bs.collapse', function() {
+                filterChevron.classList.remove('bi-chevron-down');
+                filterChevron.classList.add('bi-chevron-up');
+            });
+            filterPanel.addEventListener('hide.bs.collapse', function() {
+                filterChevron.classList.remove('bi-chevron-up');
+                filterChevron.classList.add('bi-chevron-down');
+            });
+        }
+
+        // Clear filters button
+        document.getElementById('clearFilters').addEventListener('click', function() {
+            // Reset all checkboxes
+            document.getElementById('statusOpen').checked = true;
+            document.getElementById('statusClosed').checked = true;
+            document.getElementById('typeTraditional').checked = false;
+            document.getElementById('typeHybrid').checked = false;
+            document.getElementById('typeOnline').checked = false;
+            document.getElementById('campusCollegeAve').checked = false;
+            document.getElementById('campusBusch').checked = false;
+            document.getElementById('campusLivingston').checked = false;
+            document.getElementById('campusCookDoug').checked = false;
+            document.getElementById('campusOnline').checked = false;
+            document.getElementById('schoolFilter').value = '';
+            document.getElementById('coreCodeFilter').value = '';
+            document.getElementById('subjectFilter').value = '';
+        });
+
         document.getElementById('searchForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const search = document.getElementById('search').value;
@@ -267,12 +595,68 @@
             loadingSpinner.style.display = 'block';
             resultsDiv.innerHTML = '';
 
+            // Collect filter values
             const params = new URLSearchParams({
                 year: '{{ year }}',
                 term: '{{ term }}',
                 campus: '{{ campus }}',
                 search: search
             });
+
+            // Add status filters
+            if (document.getElementById('statusOpen').checked) {
+                params.append('status_open', 'true');
+            }
+            if (document.getElementById('statusClosed').checked) {
+                params.append('status_closed', 'true');
+            }
+
+            // Add course type filters
+            if (document.getElementById('typeTraditional').checked) {
+                params.append('type_traditional', 'true');
+            }
+            if (document.getElementById('typeHybrid').checked) {
+                params.append('type_hybrid', 'true');
+            }
+            if (document.getElementById('typeOnline').checked) {
+                params.append('type_online', 'true');
+            }
+
+
+            // Add campus filters
+            if (document.getElementById('campusCollegeAve').checked) {
+                params.append('campus_college_ave', 'true');
+            }
+            if (document.getElementById('campusBusch').checked) {
+                params.append('campus_busch', 'true');
+            }
+            if (document.getElementById('campusLivingston').checked) {
+                params.append('campus_livingston', 'true');
+            }
+            if (document.getElementById('campusCookDoug').checked) {
+                params.append('campus_cook_doug', 'true');
+            }
+            if (document.getElementById('campusOnline').checked) {
+                params.append('campus_online', 'true');
+            }
+
+            // Add school filter
+            const schoolFilter = document.getElementById('schoolFilter').value;
+            if (schoolFilter) {
+                params.append('school', schoolFilter);
+            }
+
+            // Add core code filter
+            const coreCodeFilter = document.getElementById('coreCodeFilter').value;
+            if (coreCodeFilter) {
+                params.append('core_code', coreCodeFilter);
+            }
+
+            // Add subject filter
+            const subjectFilter = document.getElementById('subjectFilter').value;
+            if (subjectFilter) {
+                params.append('subject', subjectFilter);
+            }
 
             try {
                 const response = await fetch(`/api/courses?${params}`);

@@ -173,6 +173,70 @@ document.addEventListener("DOMContentLoaded", function () {
             search: searchTerm
         });
 
+        // Add status filters
+        const statusOpen = document.getElementById('statusOpen');
+        const statusClosed = document.getElementById('statusClosed');
+        if (statusOpen && statusOpen.checked) {
+            searchParams.append('status_open', 'true');
+        }
+        if (statusClosed && statusClosed.checked) {
+            searchParams.append('status_closed', 'true');
+        }
+
+        // Add course type filters
+        const typeTraditional = document.getElementById('typeTraditional');
+        const typeHybrid = document.getElementById('typeHybrid');
+        const typeOnline = document.getElementById('typeOnline');
+        if (typeTraditional && typeTraditional.checked) {
+            searchParams.append('type_traditional', 'true');
+        }
+        if (typeHybrid && typeHybrid.checked) {
+            searchParams.append('type_hybrid', 'true');
+        }
+        if (typeOnline && typeOnline.checked) {
+            searchParams.append('type_online', 'true');
+        }
+
+        // Add campus filters
+        const campusCollegeAve = document.getElementById('campusCollegeAve');
+        const campusBusch = document.getElementById('campusBusch');
+        const campusLivingston = document.getElementById('campusLivingston');
+        const campusCookDoug = document.getElementById('campusCookDoug');
+        const campusOnline = document.getElementById('campusOnline');
+        if (campusCollegeAve && campusCollegeAve.checked) {
+            searchParams.append('campus_college_ave', 'true');
+        }
+        if (campusBusch && campusBusch.checked) {
+            searchParams.append('campus_busch', 'true');
+        }
+        if (campusLivingston && campusLivingston.checked) {
+            searchParams.append('campus_livingston', 'true');
+        }
+        if (campusCookDoug && campusCookDoug.checked) {
+            searchParams.append('campus_cook_doug', 'true');
+        }
+        if (campusOnline && campusOnline.checked) {
+            searchParams.append('campus_online', 'true');
+        }
+
+        // Add school filter
+        const schoolFilter = document.getElementById('schoolFilter');
+        if (schoolFilter && schoolFilter.value) {
+            searchParams.append('school', schoolFilter.value);
+        }
+
+        // Add core code filter
+        const coreCodeFilter = document.getElementById('coreCodeFilter');
+        if (coreCodeFilter && coreCodeFilter.value) {
+            searchParams.append('core_code', coreCodeFilter.value);
+        }
+
+        // Add subject filter
+        const subjectFilter = document.getElementById('subjectFilter');
+        if (subjectFilter && subjectFilter.value) {
+            searchParams.append('subject', subjectFilter.value);
+        }
+
         if (searchTerm) {
             searchResults.innerHTML = '<div class="text-center">Searching...</div>';
 

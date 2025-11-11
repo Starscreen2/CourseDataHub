@@ -324,8 +324,17 @@
     padding: 0;
     overflow: hidden;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: stretch;
     background: white;
+    min-height: 0;
+}
+
+.planner-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 /* Calendar View */
@@ -444,6 +453,23 @@
 .course-block:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Ghost preview block for section hover */
+.ghost-course-block {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    width: auto;
+    border: 2px dashed rgba(204, 0, 0, 0.7);
+    background: rgba(204, 0, 0, 0.12);
+    color: #cc0000;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    box-sizing: border-box;
+    z-index: 20;
+    pointer-events: none;
 }
 
 .course-title {
@@ -633,6 +659,252 @@
     padding: 32px;
     overflow-y: auto;
     background: #f8f9fa;
+    min-height: 0;
+}
+
+/* Detail panel */
+.detail-panel {
+    width: 0;
+    max-width: 420px;
+    background: #ffffff;
+    border-left: 1px solid #e5e7eb;
+    box-shadow: -4px 0 18px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s ease;
+    pointer-events: none;
+}
+
+.detail-panel.is-open {
+    width: 380px;
+    pointer-events: auto;
+}
+
+.detail-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.detail-panel-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    color: #1f2937;
+}
+
+.detail-panel-subtitle {
+    font-size: 12px;
+    margin: 4px 0 0;
+    color: #6b7280;
+}
+
+.detail-panel .detail-panel-close {
+    background: transparent;
+    color: #6b7280;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detail-panel .detail-panel-close:hover {
+    background: rgba(148, 163, 184, 0.12);
+}
+
+.detail-panel .detail-panel-close::before {
+    content: "×";
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.detail-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0;
+    transition: opacity 0.2s ease;
+}
+
+.detail-panel-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.detail-panel-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-panel-back {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.detail-panel-back:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
+.detail-panel[data-mode="sections"] .detail-panel-back {
+    display: inline-flex;
+}
+
+.detail-panel[data-mode="sections"] .detail-panel-body {
+    background: #f8f9fa;
+}
+
+.detail-panel-empty {
+    padding: 24px;
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.detail-panel-loading,
+.section-list-empty {
+    padding: 24px;
+    font-size: 14px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    animation: panelSlideIn 0.25s ease;
+}
+
+.section-option {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.section-option:hover {
+    border-color: #b30000;
+    box-shadow: 0 6px 18px rgba(204, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
+
+.section-option.active {
+    border-color: #0d6efd;
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.18);
+}
+
+.section-option .section-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.section-option .section-code {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1f2937;
+}
+
+.section-option .section-index {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.section-option .status-pill {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+.section-option .status-pill.open {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.section-option .status-pill.closed {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.section-option .section-times {
+    font-size: 12px;
+    color: #4b5563;
+    line-height: 1.5;
+}
+
+.section-option .section-meta {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.detail-panel-back:focus-visible,
+.section-option:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+@keyframes panelSlideIn {
+    from {
+        transform: translateX(12px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.detail-panel-body .course-popup {
+    position: static;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    max-width: none;
+    min-width: 0;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+}
+
+.detail-panel-body .course-popup .popup-header {
+    border-top-width: 0;
+    padding-top: 12px;
+}
+
+.detail-panel-body .course-popup .popup-body {
+    max-height: none;
+    padding-bottom: 24px;
 }
 
 /* Planner Footer */
@@ -869,6 +1141,14 @@
     line-height: 1.4 !important;
 }
 
+.course-detail-trigger {
+    cursor: pointer;
+}
+
+.course-detail-trigger:hover {
+    color: #b30000 !important;
+}
+
 .list-view .course-details p {
     margin: 4px 0 !important;
     font-size: 13px !important;
@@ -961,6 +1241,19 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .planner-body {
+        flex-direction: column;
+    }
+    
+    .detail-panel,
+    .detail-panel.is-open {
+        width: 100%;
+        max-width: none;
+        border-left: none;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.12);
+    }
+    
     .floating-planner {
         bottom: 16px;
         right: 16px;

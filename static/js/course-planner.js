@@ -4,8 +4,14 @@
 // Global variables for course planner
 let scheduledCourses = [];
 let isPlannerOpen = false;
-let currentPopup = null;
-let popupTimeout = null;
+let detailPanel = null;
+let detailPanelBody = null;
+let detailPanelEmptyState = null;
+let detailPanelCourseIndex = null;
+let detailPanelTitle = null;
+let detailPanelSubtitle = null;
+let detailPanelBackButton = null;
+let detailPanelMode = 'details';
 
 // Load scheduled courses from localStorage on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -46,6 +52,7 @@ function openPlanner() {
     if (plannerPopup) {
         plannerPopup.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        ensureDetailPanel();
         updatePlannerUI();
         
         // Always generate calendar grid when opening planner
@@ -62,8 +69,8 @@ function closePlanner() {
         plannerPopup.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
-    // Hide any open popups when closing planner
-    hideCoursePopup();
+    // Hide any open detail panels when closing planner
+    closeDetailPanel();
 }
 
 function openCoursePlanner() {
@@ -121,9 +128,6 @@ function switchView(view) {
 function generateCalendarGrid() {
     const calendarGrid = document.getElementById('calendarGrid');
     if (!calendarGrid) return;
-
-    // Hide any existing popups when regenerating calendar
-    hideCoursePopup();
 
     // Clear existing grid
     calendarGrid.innerHTML = '';
@@ -320,7 +324,7 @@ function addCoursesToCalendar() {
     }
     
     // Second pass: render course blocks with minute-precision positioning
-    scheduledCourses.forEach(course => {
+    scheduledCourses.forEach((course, courseIndex) => {
         if (course.selectedSection && course.selectedSection.meetingTimes) {
             course.selectedSection.meetingTimes.forEach(meeting => {
                 const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
@@ -381,12 +385,12 @@ function addCoursesToCalendar() {
                         `;
                         
                         // Store course and meeting data for popup
-                        courseBlock.dataset.courseIndex = scheduledCourses.indexOf(course);
+                        courseBlock.dataset.courseIndex = courseIndex;
                         courseBlock.dataset.meetingDay = meeting.day;
                         courseBlock.dataset.meetingStartTime = meeting.startTime.formatted;
                         
                         // Add hover event listeners
-                        setupCourseBlockHover(courseBlock, course, meeting);
+                        setupCourseBlockHover(courseBlock, courseIndex);
                         
                         dayOverlay.appendChild(courseBlock);
                         console.log(`Added course block: ${course.courseString} at ${top}px, height ${height}px, campus: ${meeting.campus}, color: ${campusColor}`);
@@ -400,51 +404,29 @@ function addCoursesToCalendar() {
 }
 
 // Course Block Hover Popup Functions
-function setupCourseBlockHover(courseBlock, course, meeting) {
-    let hoverTimeout = null;
-    
-    courseBlock.addEventListener('mouseenter', function(e) {
-        // Clear any existing timeout
-        if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-        }
-        
-        // Small delay before showing popup to prevent flickering
-        hoverTimeout = setTimeout(() => {
-            showCoursePopup(courseBlock, course, meeting, e);
-        }, 150);
+function setupCourseBlockHover(courseBlock, courseIndex) {
+    if (!courseBlock) return;
+    courseBlock.setAttribute('tabindex', '0');
+    courseBlock.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showCoursePopup(courseBlock, scheduledCourses[courseIndex], null, e, courseIndex);
     });
-    
-    courseBlock.addEventListener('mouseleave', function(e) {
-        // Clear timeout if mouse leaves before popup shows
-        if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-            hoverTimeout = null;
+    courseBlock.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            showCoursePopup(courseBlock, scheduledCourses[courseIndex], null, e, courseIndex);
         }
-        
-        // Hide popup after a small delay to allow moving to popup
-        if (popupTimeout) {
-            clearTimeout(popupTimeout);
-        }
-        
-        popupTimeout = setTimeout(() => {
-            // Check if mouse is still over the block or popup
-            const popup = document.querySelector('.course-popup');
-            if (popup && !popup.matches(':hover') && !courseBlock.matches(':hover')) {
-                hideCoursePopup();
-            }
-        }, 100);
     });
 }
 
-function createCoursePopup(course, meeting) {
-    // Remove existing popup if any
-    if (currentPopup) {
-        currentPopup.remove();
-    }
-    
+function createCoursePopup(course, meeting, options = {}) {
+    const { forPanel = false, courseIndex = null } = options;
+
     const popup = document.createElement('div');
     popup.className = 'course-popup';
+    if (forPanel) {
+        popup.classList.add('panel-mode');
+    }
     
     // Get campus color for accent
     function getCampusColor(campusName) {
@@ -464,7 +446,8 @@ function createCoursePopup(course, meeting) {
         return '#cc0000';
     }
     
-    const campusColor = getCampusColor(meeting.campus);
+    const fallbackMeeting = meeting || (course.selectedSection?.meetingTimes?.[0]) || {};
+    const campusColor = getCampusColor(fallbackMeeting.campus);
     
     // Build popup content
     let content = `
@@ -486,7 +469,7 @@ function createCoursePopup(course, meeting) {
                 <div class="popup-details-grid">
                     <div class="popup-detail-item">
                         <span class="popup-label">Section:</span>
-                        <span class="popup-value">${section.number || 'N/A'}</span>
+                        <span class="popup-value"><button class="badge bg-primary section-switcher-btn" type="button" data-popup="true">Section ${section.number || 'N/A'}</button></span>
                     </div>
                     <div class="popup-detail-item">
                         <span class="popup-label">Status:</span>
@@ -564,200 +547,26 @@ function createCoursePopup(course, meeting) {
     
     popup.innerHTML = content;
     
-    // Add mouseenter/mouseleave to popup to keep it visible
-    popup.addEventListener('mouseenter', function() {
-        if (popupTimeout) {
-            clearTimeout(popupTimeout);
-        }
-    });
-    
-    popup.addEventListener('mouseleave', function() {
-        hideCoursePopup();
-    });
+    const switchBtn = popup.querySelector('.section-switcher-btn[data-popup="true"]');
+    if (switchBtn) {
+        switchBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = typeof courseIndex === 'number' ? courseIndex : scheduledCourses.indexOf(course);
+            if (!Number.isNaN(idx) && idx >= 0) {
+                showSectionSelector(idx);
+            }
+        });
+    }
     
     return popup;
 }
 
-function calculatePopupPosition(courseBlock, popup) {
-    const blockRect = courseBlock.getBoundingClientRect();
-    const calendarGrid = document.getElementById('calendarGrid');
-    const gridRect = calendarGrid ? calendarGrid.getBoundingClientRect() : null;
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
-    // Get actual popup dimensions after it's been added to DOM
-    const popupRect = popup.getBoundingClientRect();
-    const actualPopupHeight = popupRect.height;
-    const actualPopupWidth = popupRect.width;
-    const popupOffset = 12; // Space between block and popup
-    const viewportPadding = 20; // Padding from viewport edges
-    
-    let top, left;
-    let positionAbove = false;
-    let maxHeight = null;
-    
-    // Calculate available space above and below
-    const spaceBelow = viewportHeight - blockRect.bottom - viewportPadding;
-    const spaceAbove = blockRect.top - viewportPadding;
-    
-    // Determine best position (above or below)
-    if (spaceBelow < actualPopupHeight && spaceAbove > spaceBelow) {
-        // Position above - we have more space above
-        positionAbove = true;
-        top = blockRect.top - actualPopupHeight - popupOffset;
-        
-        // If popup would go above viewport, adjust
-        if (top < viewportPadding) {
-            top = viewportPadding;
-            // Calculate max height based on available space above block
-            maxHeight = blockRect.top - popupOffset - viewportPadding;
-        }
-    } else {
-        // Position below
-        top = blockRect.bottom + popupOffset;
-        
-        // If popup would go below viewport, adjust
-        const bottomEdge = top + actualPopupHeight;
-        if (bottomEdge > viewportHeight - viewportPadding) {
-            // Calculate max height based on available space below block
-            maxHeight = viewportHeight - top - viewportPadding;
-            // Ensure we don't go below viewport
-            if (maxHeight < 100) {
-                // Not enough space below, try positioning above instead
-                positionAbove = true;
-                top = blockRect.top - popupOffset;
-                maxHeight = blockRect.top - viewportPadding;
-                // If still not enough space, use viewport height
-                if (maxHeight < 100) {
-                    top = viewportPadding;
-                    maxHeight = viewportHeight - (2 * viewportPadding);
-                }
-            }
-        }
+function showCoursePopup(courseBlock, course, meeting, event, courseIndexOverride) {
+    const idx = typeof courseIndexOverride === 'number' ? courseIndexOverride : scheduledCourses.indexOf(course);
+    if (idx === -1) {
+        return;
     }
-    
-    // Ensure top never goes above viewport
-    if (top < viewportPadding) {
-        top = viewportPadding;
-    }
-    
-    // Calculate horizontal position (centered on block, but adjust if near edges)
-    left = blockRect.left + (blockRect.width / 2) - (actualPopupWidth / 2);
-    
-    // Adjust if popup would go off right edge
-    if (left + actualPopupWidth > viewportWidth - viewportPadding) {
-        left = viewportWidth - actualPopupWidth - viewportPadding;
-    }
-    
-    // Adjust if popup would go off left edge
-    if (left < viewportPadding) {
-        left = viewportPadding;
-    }
-    
-    // If grid exists, ensure popup stays within calendar bounds horizontally
-    if (gridRect) {
-        const gridLeft = Math.max(gridRect.left, viewportPadding);
-        const gridRight = Math.min(gridRect.right, viewportWidth - viewportPadding);
-        
-        if (left < gridLeft) {
-            left = gridLeft;
-        }
-        if (left + actualPopupWidth > gridRight) {
-            left = gridRight - actualPopupWidth;
-        }
-    }
-    
-    return {
-        top: top,
-        left: left,
-        positionAbove: positionAbove,
-        maxHeight: maxHeight
-    };
-}
-
-function showCoursePopup(courseBlock, course, meeting, event) {
-    // Hide any existing popup
-    hideCoursePopup();
-    
-    // Create popup
-    const popup = createCoursePopup(course, meeting);
-    document.body.appendChild(popup);
-    currentPopup = popup;
-    
-    // Initially position off-screen to measure dimensions
-    popup.style.visibility = 'hidden';
-    popup.style.top = '-9999px';
-    popup.style.left = '-9999px';
-    
-    // Force a reflow to ensure dimensions are calculated
-    void popup.offsetHeight;
-    
-    // Calculate position based on actual popup dimensions
-    const position = calculatePopupPosition(courseBlock, popup);
-    
-    // Apply position and make visible
-    popup.style.top = `${position.top}px`;
-    popup.style.left = `${position.left}px`;
-    popup.style.visibility = 'visible';
-    
-    // Apply max-height if needed to fit within viewport
-    if (position.maxHeight && position.maxHeight > 0) {
-        const popupBody = popup.querySelector('.popup-body');
-        if (popupBody) {
-            popupBody.style.maxHeight = `${position.maxHeight}px`;
-            popupBody.style.overflowY = 'auto';
-        }
-    }
-    
-    // Final check: ensure popup doesn't extend beyond viewport bottom
-    // Re-measure after positioning to account for any max-height adjustments
-    requestAnimationFrame(() => {
-        const finalRect = popup.getBoundingClientRect();
-        const viewportPadding = 20;
-        const maxBottom = window.innerHeight - viewportPadding;
-        
-        if (finalRect.bottom > maxBottom) {
-            const overflow = finalRect.bottom - maxBottom;
-            const newTop = Math.max(viewportPadding, position.top - overflow);
-            popup.style.top = `${newTop}px`;
-            
-            // Adjust max-height if we moved the popup
-            const popupBody = popup.querySelector('.popup-body');
-            if (popupBody && position.maxHeight) {
-                const adjustedMaxHeight = position.maxHeight - (position.top - newTop);
-                if (adjustedMaxHeight > 100) {
-                    popupBody.style.maxHeight = `${adjustedMaxHeight}px`;
-                }
-            }
-        }
-    });
-    
-    // Add class for animation
-    popup.classList.add('popup-visible');
-}
-
-function hideCoursePopup() {
-    if (currentPopup) {
-        // Reset max-height before hiding
-        const popupBody = currentPopup.querySelector('.popup-body');
-        if (popupBody) {
-            popupBody.style.maxHeight = '';
-            popupBody.style.overflowY = '';
-        }
-        
-        currentPopup.classList.remove('popup-visible');
-        // Remove after animation
-        setTimeout(() => {
-            if (currentPopup && currentPopup.parentNode) {
-                currentPopup.parentNode.removeChild(currentPopup);
-            }
-            currentPopup = null;
-        }, 200);
-    }
-    if (popupTimeout) {
-        clearTimeout(popupTimeout);
-        popupTimeout = null;
-    }
+    showCourseDetail(idx);
 }
 
 // Link Functions
@@ -904,6 +713,381 @@ function updatePlannerUI() {
     if (calendarView && calendarView.style.display !== 'none') {
         generateCalendarGrid();
     }
+
+    refreshDetailPanel();
+}
+
+// Detail panel helpers
+function ensureDetailPanel() {
+    if (detailPanel) {
+        return detailPanel;
+    }
+    detailPanel = document.getElementById('plannerDetailPanel');
+    if (!detailPanel) {
+        return null;
+    }
+    detailPanelBody = detailPanel.querySelector('.detail-panel-body');
+    detailPanelEmptyState = detailPanel.querySelector('.detail-panel-empty');
+    detailPanelTitle = detailPanel.querySelector('.detail-panel-title');
+    detailPanelSubtitle = detailPanel.querySelector('.detail-panel-subtitle');
+    detailPanelBackButton = detailPanel.querySelector('.detail-panel-back');
+    if (detailPanelBackButton && !detailPanelBackButton.dataset.bound) {
+        detailPanelBackButton.addEventListener('click', () => {
+            if (detailPanelCourseIndex != null) {
+                showCourseDetail(detailPanelCourseIndex);
+            } else {
+                updateDetailPanelHeader('details', null);
+            }
+        });
+        detailPanelBackButton.dataset.bound = 'true';
+    }
+    if (detailPanelBackButton) {
+        detailPanelBackButton.setAttribute('aria-hidden', 'true');
+        detailPanelBackButton.tabIndex = -1;
+    }
+    const closeBtn = detailPanel.querySelector('.detail-panel-close');
+    if (closeBtn && !closeBtn.dataset.bound) {
+        closeBtn.addEventListener('click', () => {
+            closeDetailPanel();
+        });
+        closeBtn.dataset.bound = 'true';
+    }
+    detailPanel.dataset.mode = detailPanel.dataset.mode || 'details';
+    return detailPanel;
+}
+
+function updateDetailPanelHeader(mode, course) {
+    detailPanelMode = mode;
+    const panel = ensureDetailPanel();
+    if (!panel) return;
+    panel.dataset.mode = mode;
+    if (detailPanelTitle) {
+        if (mode === 'sections') {
+            detailPanelTitle.textContent = 'Select a Section';
+            if (detailPanelSubtitle) {
+                const courseLabel = course?.courseString ? `${course.courseString} • ` : '';
+                detailPanelSubtitle.textContent = `${courseLabel}Hover to preview on the calendar, click to switch.`.trim();
+            }
+        } else if (course) {
+            detailPanelTitle.textContent = course.courseString || 'Course Details';
+            if (detailPanelSubtitle) {
+                detailPanelSubtitle.textContent = course.title || 'View schedule, instructors, and section info.';
+            }
+        } else {
+            detailPanelTitle.textContent = 'Course Details';
+            if (detailPanelSubtitle) {
+                detailPanelSubtitle.textContent = 'Select a course to view full information';
+            }
+        }
+    }
+    if (detailPanelBackButton) {
+        const showBack = mode === 'sections';
+        detailPanelBackButton.style.display = showBack ? 'inline-flex' : 'none';
+        detailPanelBackButton.setAttribute('aria-hidden', showBack ? 'false' : 'true');
+        detailPanelBackButton.tabIndex = showBack ? 0 : -1;
+    }
+}
+
+function showCourseDetail(courseIndex) {
+    const panel = ensureDetailPanel();
+    if (!panel) return;
+    if (courseIndex == null || !scheduledCourses[courseIndex]) {
+        return;
+    }
+    detailPanelCourseIndex = courseIndex;
+    updateDetailPanelHeader('details', scheduledCourses[courseIndex]);
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
+    clearSectionPreview();
+    renderDetailPanelContent(scheduledCourses[courseIndex], courseIndex);
+}
+
+function renderDetailPanelContent(course, courseIndex) {
+    ensureDetailPanel();
+    if (!detailPanelBody) return;
+    const defaultMeeting = course?.selectedSection?.meetingTimes?.[0] || null;
+    const content = createCoursePopup(course, defaultMeeting, { forPanel: true, courseIndex });
+    detailPanelBody.innerHTML = '';
+    detailPanelBody.appendChild(content);
+    if (detailPanelEmptyState) {
+        detailPanelEmptyState.style.display = 'none';
+    }
+}
+
+async function showSectionSelector(courseIndex) {
+    const panel = ensureDetailPanel();
+    if (!panel) return;
+    const course = scheduledCourses[courseIndex];
+    if (!course) return;
+    detailPanelCourseIndex = courseIndex;
+    updateDetailPanelHeader('sections', course);
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
+    clearSectionPreview();
+    if (detailPanelEmptyState) {
+        detailPanelEmptyState.style.display = 'none';
+    }
+    if (detailPanelBody) {
+        detailPanelBody.innerHTML = `<div class="detail-panel-loading">Loading sections...</div>`;
+    }
+
+    const sections = await fetchCourseSections(course);
+    if (!detailPanelBody) return;
+
+    if (!sections.length) {
+        detailPanelBody.innerHTML = `<div class="section-list-empty">No alternative sections found for this course.</div>`;
+        return;
+    }
+
+    const currentIndex = course.selectedSection?.index ? String(course.selectedSection.index) : null;
+    detailPanelBody.innerHTML = `
+        <div class="section-list">
+            ${sections.map(section => {
+                const sectionIndex = String(section.index);
+                const isCurrent = currentIndex === sectionIndex;
+                const mt = section.meeting_times && section.meeting_times[0] ? section.meeting_times[0] : {};
+                const dayText = mt.day || 'TBA';
+                const startText = mt.start_time?.formatted || 'TBA';
+                const endText = mt.end_time?.formatted || 'TBA';
+                const location = `${mt.building || 'TBA'} ${mt.room || ''}`.trim();
+                const statusClass = (section.status || '').toLowerCase() === 'open' ? 'open' : 'closed';
+                return `
+                    <button type="button" class="section-option${isCurrent ? ' active' : ''}" data-index="${sectionIndex}">
+                        <div class="section-top">
+                            <span class="section-code">Section ${section.number}</span>
+                            <span class="section-index">Index ${sectionIndex}</span>
+                            <span class="status-pill ${statusClass}">${section.status || ''}</span>
+                        </div>
+                        <div class="section-times">${dayText} • ${startText} - ${endText}</div>
+                        <div class="section-meta">${location || 'Location TBA'}</div>
+                    </button>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    const sectionButtons = detailPanelBody.querySelectorAll('.section-option');
+    sectionButtons.forEach(btn => {
+        const idx = btn.getAttribute('data-index');
+        const section = sections.find(sec => String(sec.index) === idx);
+        if (!section) return;
+
+        const triggerPreview = () => {
+            if (previewDebounceTimer) {
+                clearTimeout(previewDebounceTimer);
+            }
+            previewDebounceTimer = setTimeout(() => {
+                previewSectionOnCalendar(course, section);
+            }, 60);
+        };
+
+        btn.addEventListener('mouseenter', triggerPreview);
+        btn.addEventListener('focus', triggerPreview);
+
+        const clearPreview = () => {
+            if (previewDebounceTimer) {
+                clearTimeout(previewDebounceTimer);
+                previewDebounceTimer = null;
+            }
+            clearSectionPreview();
+        };
+
+        btn.addEventListener('mouseleave', clearPreview);
+        btn.addEventListener('blur', clearPreview);
+
+        const selectSection = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            applySectionSelection(courseIndex, section);
+            showCourseDetail(courseIndex);
+        };
+
+        btn.addEventListener('click', selectSection);
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                selectSection(e);
+            }
+        });
+    });
+}
+
+function closeDetailPanel() {
+    const panel = ensureDetailPanel();
+    if (!panel) return;
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
+    detailPanelCourseIndex = null;
+    updateDetailPanelHeader('details', null);
+    if (detailPanelBody) {
+        detailPanelBody.innerHTML = '';
+    }
+    if (detailPanelEmptyState) {
+        detailPanelEmptyState.style.display = 'block';
+    }
+    clearSectionPreview();
+}
+
+function refreshDetailPanel() {
+    if (!detailPanel) {
+        return;
+    }
+    if (!detailPanel.classList.contains('is-open')) {
+        return;
+    }
+    if (detailPanelCourseIndex == null || !scheduledCourses[detailPanelCourseIndex]) {
+        closeDetailPanel();
+        return;
+    }
+    if (detailPanelMode === 'sections') {
+        showSectionSelector(detailPanelCourseIndex);
+    } else {
+        const course = scheduledCourses[detailPanelCourseIndex];
+        updateDetailPanelHeader('details', course);
+        renderDetailPanelContent(course, detailPanelCourseIndex);
+    }
+}
+
+// ============ Section Switching (Data + UI) ============
+// Cache for fetched sections per courseString
+const courseStringToSectionsCache = new Map();
+let ghostBlocks = [];
+let previewDebounceTimer = null;
+
+async function fetchCourseSections(course) {
+    const key = course.courseString;
+    if (!key) return [];
+    if (courseStringToSectionsCache.has(key)) {
+        return courseStringToSectionsCache.get(key);
+    }
+    try {
+        const params = new URLSearchParams({
+            year: new URLSearchParams(window.location.search).get('year') || '2026',
+            term: new URLSearchParams(window.location.search).get('term') || '1',
+            campus: new URLSearchParams(window.location.search).get('campus') || 'NB',
+            search: key
+        });
+        const resp = await fetch(`/api/courses?${params.toString()}`);
+        const json = await resp.json();
+        if (json.status !== 'success' || !Array.isArray(json.data)) {
+            throw new Error('Invalid response');
+        }
+        // Find matching course by courseString
+        const match = json.data.find(c => c.courseString === key) || json.data[0];
+        const sections = (match && Array.isArray(match.sections)) ? match.sections : [];
+        courseStringToSectionsCache.set(key, sections);
+        return sections;
+    } catch (e) {
+        showNotification('Failed to load sections. Please try again.', 'danger');
+        return [];
+    }
+}
+
+function clearSectionPreview() {
+    if (previewDebounceTimer) {
+        clearTimeout(previewDebounceTimer);
+        previewDebounceTimer = null;
+    }
+    ghostBlocks.forEach(el => el.remove());
+    ghostBlocks = [];
+}
+
+function previewSectionOnCalendar(course, section) {
+    clearSectionPreview();
+    if (!section || !Array.isArray(section.meeting_times)) return;
+
+    // Ensure calendar view is visible so previews render
+    const calendarView = document.getElementById('calendarView');
+    if (calendarView && calendarView.style.display === 'none') {
+        switchView('calendar');
+    }
+    const calendarGrid = document.getElementById('calendarGrid');
+    if (!calendarGrid || calendarGrid.children.length === 0) {
+        generateCalendarGrid();
+    }
+
+    // Measure for positioning
+    const firstRow = document.querySelector('.calendar-row');
+    if (!firstRow) return;
+    const GRID_START_HOUR = 7;
+    const ROW_HEIGHT_PX = firstRow.offsetHeight || 45;
+    const PX_PER_MIN = ROW_HEIGHT_PX / 60;
+    const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
+
+    function parseTimeToMinutesSimple(timeStr) {
+        if (!timeStr) return null;
+        const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!m) return null;
+        let h = parseInt(m[1], 10);
+        const mins = parseInt(m[2], 10);
+        const p = m[3].toUpperCase();
+        if (p === 'PM' && h !== 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        return h * 60 + mins;
+    }
+
+    section.meeting_times.forEach(mt => {
+        const dIndex = dayMap[mt.day];
+        if (dIndex === undefined) return;
+        const start = parseTimeToMinutesSimple(mt.start_time?.formatted);
+        const end = parseTimeToMinutesSimple(mt.end_time?.formatted) || (start !== null ? start + 60 : null);
+        if (start === null || end === null) return;
+
+        const dayOverlay = document.querySelector(`.day-overlay[data-day="${dIndex}"]`);
+        if (!dayOverlay) return;
+
+        const top = (start - GRID_START_HOUR * 60) * PX_PER_MIN;
+        const height = Math.max((end - start) * PX_PER_MIN, 18);
+
+        const ghost = document.createElement('div');
+        ghost.className = 'ghost-course-block';
+        ghost.style.top = `${top}px`;
+        ghost.style.height = `${height}px`;
+        ghost.innerHTML = `
+            <div class="course-title">${course.courseString} (Sec ${section.number})</div>
+            <div class="course-time">${mt.start_time?.formatted || 'TBA'} - ${mt.end_time?.formatted || 'TBA'}</div>
+            <div class="course-location">${mt.building || 'TBA'}</div>
+        `;
+        dayOverlay.appendChild(ghost);
+        ghostBlocks.push(ghost);
+    });
+}
+
+function applySectionSelection(courseIndex, section) {
+    const course = scheduledCourses[courseIndex];
+    if (!course) return;
+    
+    // Ensure planner stays open
+    if (!isPlannerOpen) {
+        openPlanner();
+    }
+    
+    course.selectedSection = {
+        number: section.number,
+        index: String(section.index),
+        status: section.status,
+        instructors: section.instructors && section.instructors.length ? section.instructors : ['TBA'],
+        meetingTimes: (section.meeting_times || []).map(mt => ({
+            day: mt.day,
+            startTime: { formatted: mt.start_time?.formatted || 'TBA' },
+            endTime: { formatted: mt.end_time?.formatted || 'TBA' },
+            building: mt.building || '',
+            campus: mt.campus || ''
+        }))
+    };
+    localStorage.setItem('scheduledCourses', JSON.stringify(scheduledCourses));
+    
+    // Switch to details mode before updating UI to prevent refreshDetailPanel from re-opening section selector
+    detailPanelMode = 'details';
+    updateDetailPanelHeader('details', course);
+    
+    updatePlannerUI();
+    showCourseDetail(courseIndex);
+    showNotification(`Switched to section ${section.number} (Index ${section.index})`, 'success');
+    clearSectionPreview();
 }
 
 function updateCourseList() {
@@ -955,7 +1139,7 @@ function updateCourseList() {
         return `
         <div class="course-card" style="border-left-color: ${campusColor} !important;">
             <div class="course-header">
-                <h5>${course.courseString} - ${course.title}</h5>
+                <h5 class="course-detail-trigger" data-course-index="${index}">${course.courseString} - ${course.title}</h5>
                 <button class="btn btn-sm btn-outline-danger" onclick="removeCourse(${index})">
                     <i class="bi bi-x"></i>
                 </button>
@@ -967,7 +1151,7 @@ function updateCourseList() {
                 ${course.selectedSection ? `
                     <div class="section-info mt-3">
                         <div class="d-flex gap-2 mb-2">
-                            <span class="badge bg-primary">Section ${course.selectedSection.number}</span>
+                            <button class="badge bg-primary section-switcher-btn" type="button" data-course-index="${index}">Section ${course.selectedSection.number}</button>
                             <span class="badge ${course.selectedSection.status.toLowerCase() === 'open' ? 'bg-success' : 'bg-danger'}">${course.selectedSection.status}</span>
                             <span class="badge bg-info">Index: ${course.selectedSection.index}</span>
                         </div>
@@ -989,6 +1173,29 @@ function updateCourseList() {
         </div>
     `;
     }).join('');
+
+    // Wire section switcher buttons
+    coursesList.querySelectorAll('.section-switcher-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const courseIndex = parseInt(btn.getAttribute('data-course-index'), 10);
+            if (!Number.isNaN(courseIndex)) {
+                showSectionSelector(courseIndex);
+            }
+        });
+    });
+
+    // Wire course title click to open detail panel
+    coursesList.querySelectorAll('.course-detail-trigger').forEach(titleEl => {
+        titleEl.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const idx = parseInt(titleEl.getAttribute('data-course-index'), 10);
+            if (!Number.isNaN(idx)) {
+                showCourseDetail(idx);
+            }
+        });
+    });
 }
 
 function updateStats() {

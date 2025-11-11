@@ -449,11 +449,16 @@ class CourseFetcher:
             return courses
         
         filtered_courses = []
+        subject_filter_applied = False
         
         for course in courses:
-            # Filter by subject
+            # Filter by subject - normalize both values to strings and strip whitespace for comparison
             if 'subject' in filters:
-                if course.get('subject', '') != filters['subject']:
+                subject_filter_applied = True
+                course_subject = str(course.get('subject', '')).strip()
+                filter_subject = str(filters['subject']).strip()
+                # Only apply filter if filter_subject is not empty
+                if filter_subject and course_subject != filter_subject:
                     continue
             
             # Filter by school/unit
@@ -588,7 +593,10 @@ class CourseFetcher:
             # Course passed all filters
             filtered_courses.append(course)
         
-        logger.info(f"Applied filters to {len(courses)} courses, {len(filtered_courses)} courses remain")
+        if subject_filter_applied and 'subject' in filters:
+            logger.info(f"Subject filter '{filters['subject']}' applied: {len(courses)} courses -> {len(filtered_courses)} courses")
+        else:
+            logger.info(f"Applied filters to {len(courses)} courses, {len(filtered_courses)} courses remain")
         return filtered_courses
 
     def get_courses(self,
@@ -611,16 +619,21 @@ class CourseFetcher:
                 )
                 return []
 
-            filtered_courses = self.courses_by_params[param_key]
+            # Get a copy of the cached courses to avoid modifying the original
+            filtered_courses = self.courses_by_params[param_key].copy()
 
+            # Apply filters FIRST to narrow down the dataset before searching
+            # This ensures that if a subject filter is set, we only search within that subject
+            if filters:
+                logger.info(f"Applying filters: {filters}")
+                filtered_courses = self.apply_filters(filtered_courses, filters)
+                logger.info(f"After filters: {len(filtered_courses)} courses remain")
+
+            # Then apply search on the filtered results
             if search:
                 # Use fuzzy search to filter courses
                 filtered_courses = self.fuzzy_search_courses(
                     filtered_courses, search)
-
-            # Apply additional filters if provided
-            if filters:
-                filtered_courses = self.apply_filters(filtered_courses, filters)
 
             # Enrich course data with detailed information
             enriched_courses = []

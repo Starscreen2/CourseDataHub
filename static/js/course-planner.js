@@ -761,13 +761,70 @@ function hideCoursePopup() {
 }
 
 // Link Functions
-function copyScheduleLink() {
-    const scheduleData = JSON.stringify(scheduledCourses);
-    const encodedData = encodeURIComponent(scheduleData);
-    const link = `${window.location.origin}${window.location.pathname}?schedule=${encodedData}`;
+function generateWebRegLink() {
+    // Get year and term from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    let year = urlParams.get('year');
+    let term = urlParams.get('term');
     
-    navigator.clipboard.writeText(link).then(() => {
-        showNotification('Schedule link copied to clipboard!', 'success');
+    // Fallback: try to get from data attributes if available
+    if (!year || !term) {
+        const yearEl = document.querySelector('[data-year]');
+        const termEl = document.querySelector('[data-term]');
+        if (yearEl) year = yearEl.getAttribute('data-year');
+        if (termEl) term = termEl.getAttribute('data-term');
+    }
+    
+    // Fallback: try to get from form select elements (for select.html)
+    if (!year || !term) {
+        const yearSelect = document.getElementById('year');
+        const termSelect = document.getElementById('term');
+        if (yearSelect && yearSelect.value) year = yearSelect.value;
+        if (termSelect && termSelect.value) term = termSelect.value;
+    }
+    
+    // Default values if still not found
+    if (!year) year = '2026';
+    if (!term) term = '1';
+    
+    // Construct semesterSelection: term + year (e.g., "1" + "2026" = "12026")
+    const semesterSelection = term + year;
+    
+    // Collect all indices from scheduledCourses
+    const indices = [];
+    scheduledCourses.forEach(course => {
+        if (course.selectedSection && course.selectedSection.index) {
+            indices.push(course.selectedSection.index);
+        }
+    });
+    
+    if (indices.length === 0) {
+        showNotification('No courses in your schedule to register', 'warning');
+        return null;
+    }
+    
+    // Build the WebReg URL
+    const indexList = indices.join(',');
+    const webRegUrl = `https://sims.rutgers.edu/webreg/editSchedule.htm?login=cas&semesterSelection=${semesterSelection}&indexList=${indexList}`;
+    
+    return webRegUrl;
+}
+
+function openWebReg() {
+    const url = generateWebRegLink();
+    if (url) {
+        window.open(url, '_blank');
+    }
+}
+
+function copyScheduleLink() {
+    const webRegUrl = generateWebRegLink();
+    if (!webRegUrl) {
+        return; // generateWebRegLink already shows a notification if no courses
+    }
+    
+    navigator.clipboard.writeText(webRegUrl).then(() => {
+        showNotification('WebReg link copied to clipboard!', 'success');
     }).catch(() => {
         showNotification('Failed to copy link', 'error');
     });

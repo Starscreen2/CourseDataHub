@@ -2,7 +2,7 @@ import logging
 import datetime
 from typing import Dict, List, Optional
 from course_fetcher import CourseFetcher
-from rapidfuzz import fuzz, process
+from rapidfuzz import fuzz
 from utils.constants import CAMPUS_ID_TO_NAME, CAMPUS_ABBREV_TO_NAME
 from utils.fuzzy_utils import get_best_fuzzy_score
 
@@ -75,8 +75,11 @@ class RoomFetcher:
                             'room': room,
                             'full_name': f"{building} {room}",
                             'building_name': meeting_time.get('building_name', ''),
+                            # CourseFetcher exposes the normalized campus as
+                            # `campus`; keep both names for compatibility with
+                            # older frontend payloads.
                             'campus': meeting_time.get('campus', ''),
-                            'campus_name': meeting_time.get('campus_name', ''),
+                            'campus_name': meeting_time.get('campus_name') or meeting_time.get('campus', ''),
                             'latitude': coordinates['lat'] if coordinates else None,
                             'longitude': coordinates['lng'] if coordinates else None,
                             'building_type': building_type
@@ -84,21 +87,25 @@ class RoomFetcher:
         
         return list(rooms.values())
 
-    def get_all_rooms(self, year="2025", term="1", campus="NB") -> List[Dict]:
+    def get_all_rooms(self, year="2026", term="1", campus="NB", courses: Optional[List[Dict]] = None) -> List[Dict]:
         """
         Retrieve a list of all unique rooms from the course data.
         """
-        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
+        if courses is None:
+            courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
         return self._extract_rooms_from_courses(courses)
 
-    def search_rooms(self, query: str, year="2025", term="1", campus="NB", 
-                    building_types: List[str] = None, campus_filters: List[str] = None) -> List[Dict]:
+    def search_rooms(self, query: str, year="2026", term="1", campus="NB",
+                    building_types: List[str] = None, campus_filters: List[str] = None,
+                    courses: Optional[List[Dict]] = None) -> List[Dict]:
         """
         Search for rooms matching the given query using fuzzy matching and semantic search.
         Enhanced to better handle full room names, building names, and course-related searches.
         Includes search by school, campus location, prerequisites, and core codes.
         """
-        all_rooms = self.get_all_rooms(year, term, campus)
+        if courses is None:
+            courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
+        all_rooms = self.get_all_rooms(year, term, campus, courses=courses)
         
         # Apply building type filters
         if building_types:
@@ -106,13 +113,15 @@ class RoomFetcher:
         
         # Apply campus filters
         if campus_filters:
-            all_rooms = [room for room in all_rooms if room.get('campus_name') in campus_filters]
+            normalized_campuses = {str(value).strip().lower() for value in campus_filters}
+            all_rooms = [
+                room for room in all_rooms
+                if str(room.get('campus_name') or room.get('campus') or '').strip().lower()
+                in normalized_campuses
+            ]
         
         if not query:
             return all_rooms
-        
-        # Get all courses for semantic search
-        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
         
         # Create a mapping of rooms to their associated courses with enhanced information
         room_courses = {}
@@ -131,7 +140,7 @@ class RoomFetcher:
                             'courseString': course.get('courseString', ''),
                             'school': course.get('school', ''),
                             'prerequisites': course.get('prerequisites', ''),
-                            'coreCodes': course.get('coreCodes', []),
+                            'coreCodes': course.get('coreRequirements', course.get('coreCodes', [])),
                             'campus': meeting_time.get('campus', ''),
                             'campus_name': meeting_time.get('campus_name', '')
                         })
@@ -201,7 +210,10 @@ class RoomFetcher:
                     # Search in core codes
                     core_codes_score = 0
                     if course_info['coreCodes']:
-                        core_codes_text = ' '.join(course_info['coreCodes']).lower()
+                        core_codes_text = ' '.join(
+                            item.get('code', '') if isinstance(item, dict) else str(item)
+                            for item in course_info['coreCodes']
+                        ).lower()
                         core_codes_score = fuzz.token_set_ratio(query_lower, core_codes_text)
                     
                     # Search in campus location
@@ -269,6 +281,17 @@ class RoomFetcher:
         except ValueError as e:
             self.logger.error(f"Error parsing time: {e}")
             return False
+
+    @staticmethod
+    def _time_to_minutes(value: str) -> int:
+        """Return minutes since midnight for stable chronological sorting."""
+        if not value or value == 'TBA':
+            return 24 * 60 + 1
+        try:
+            parsed = datetime.datetime.strptime(value, '%I:%M %p')
+            return parsed.hour * 60 + parsed.minute
+        except ValueError:
+            return 24 * 60 + 1
     
     def _filter_by_campus(self, rooms: List[Dict], campus_filter: str) -> List[Dict]:
         """
@@ -330,8 +353,9 @@ class RoomFetcher:
         self.logger.debug(f"Campus filter '{campus_name}' found {len(filtered_rooms)} of {len(rooms)} rooms")
         return filtered_rooms
 
-    def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2025", 
-                            term="1", campus="NB", campus_filter="", search: str = "") -> List[Dict]:
+    def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2026",
+                            term="1", campus="NB", campus_filter="", search: str = "",
+                            campus_filters: Optional[List[str]] = None) -> List[Dict]:
         """
         Find rooms that are available during a specific day and time range.
         
@@ -345,17 +369,22 @@ class RoomFetcher:
         
         Returns a list of available rooms with their details.
         """
-        # Get all rooms (optionally filtered by search query)
-        all_rooms = self.search_rooms(search, year, term, campus)
+        # Fetch course data once; room extraction and availability checks both
+        # use the same snapshot instead of repeating the expensive enrichment.
+        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
+        all_rooms = self.search_rooms(search, year, term, campus, courses=courses)
         
         # Apply campus filter if specified
-        if campus_filter:
-            all_rooms = self._filter_by_campus(all_rooms, campus_filter)
+        filters = campus_filters or ([campus_filter] if campus_filter else [])
+        if filters:
+            normalized_campuses = {str(value).strip().lower() for value in filters}
+            all_rooms = [
+                room for room in all_rooms
+                if str(room.get('campus_name') or room.get('campus') or '').strip().lower()
+                in normalized_campuses
+            ]
             
         available_rooms = []
-        
-        # Get all course data for scheduling analysis
-        courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
         
         for room_info in all_rooms:
             building = room_info['building']
@@ -400,7 +429,7 @@ class RoomFetcher:
         
         return available_rooms
 
-    def get_room_schedule(self, building: str, room: str, year="2025", term="1", campus="NB") -> Dict:
+    def get_room_schedule(self, building: str, room: str, year="2026", term="1", campus="NB") -> Dict:
         """
         Get the schedule for a specific room, organized by day and time.
         """
@@ -481,7 +510,7 @@ class RoomFetcher:
         # Sort each day's classes by start time
         for day in schedule["daily_schedule"]:
             schedule["daily_schedule"][day].sort(
-                key=lambda x: x["start_time"] if x["start_time"] != "TBA" else "23:59"
+                key=lambda x: self._time_to_minutes(x["start_time"])
             )
         
         # Sort weekly schedule by day and then start time
@@ -489,7 +518,7 @@ class RoomFetcher:
         schedule["weekly_schedule"].sort(
             key=lambda x: (
                 day_order.get(x["day"], 99),  # Sort by day order
-                x["start_time"] if x["start_time"] != "TBA" else "23:59"  # Then by start time
+                self._time_to_minutes(x["start_time"]),
             )
         )
         

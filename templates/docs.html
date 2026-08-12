@@ -27,11 +27,12 @@
                 <ul>
                     <li><code>subject</code> (optional) - Filter by subject code</li>
                     <li><code>course_number</code> (optional) - Filter by course number</li>
+                    <li><code>year</code>, <code>term</code>, <code>campus</code> (optional) - Select the Rutgers schedule</li>
                 </ul>
 
                 <div class="example">
                     <h4>Example Request</h4>
-                    <pre><code class="language-bash">curl http://localhost:5000/api/courses?subject=CS&course_number=111</code></pre>
+                    <pre><code class="language-bash">curl "http://localhost:5000/api/courses?subject=198&amp;course_number=111"</code></pre>
 
                     <h4>Example Response</h4>
                     <pre><code class="language-json" id="example-response">
@@ -67,9 +68,10 @@
         <section class="mb-5">
             <h2>Rate Limits</h2>
             <ul>
-                <li>200 requests per day</li>
-                <li>50 requests per hour</li>
-                <li>30 requests per minute for /api/courses</li>
+                <li>10 requests per minute by default</li>
+                <li>100 requests per minute for <code>/api/courses</code></li>
+                <li>50 requests per minute for <code>/api/rooms</code> and <code>/api/salary</code></li>
+                <li>30 requests per minute for <code>/api/room-schedule</code></li>
             </ul>
         </section>
     </div>

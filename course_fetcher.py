@@ -1,8 +1,10 @@
-import requests
 import logging
-from datetime import datetime
+import os
+import threading
+from datetime import datetime, timezone
 from typing import Optional, List, Dict
-import json
+
+import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from rapidfuzz import fuzz
@@ -27,32 +29,30 @@ class CourseFetcher:
 
 
     def __init__(self):
-        self.courses_by_params = {
-        }  # Store courses for different parameter combinations
+        # Keep the cache in-process. This avoids a network call while Vercel
+        # imports the module and lets warm serverless instances reuse data.
+        self.courses_by_params: Dict[str, List[Dict]] = {}
+        self.updated_at_by_params: Dict[str, datetime] = {}
         self.last_update = None
-        self.base_url = "https://classes.rutgers.edu/soc/api/courses.json"
+        self.base_url = os.environ.get(
+            "RUTGERS_COURSES_URL",
+            "https://classes.rutgers.edu/soc/api/courses.json",
+        )
+        self.cache_ttl_seconds = max(
+            0, int(os.environ.get("COURSE_CACHE_TTL_SECONDS", "900"))
+        )
+        self._locks: Dict[str, threading.Lock] = {}
 
         # Configure requests session with retries
         self.session = requests.Session()
         retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
+            total=1,
+            backoff_factor=0.25,
             status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=frozenset({"GET"}),
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("https://", adapter)
-
-        self.update_courses()  # Initial fetch with default params
-
-    def _check_and_raise_if_no_cache(self, param_key: str) -> None:
-        """
-        Check if param_key exists in cache, raise exception if not.
-        
-        Args:
-            param_key: The parameter key to check in courses_by_params cache
-        """
-        if param_key not in self.courses_by_params:
-            raise
 
     def convert_to_am_pm(self, military_time: str) -> str:
         """Convert military time to AM/PM format"""
@@ -64,6 +64,11 @@ class CourseFetcher:
         except ValueError:
             logger.warning(f"Invalid military time format: {military_time}")
             return "N/A"
+
+    def _mark_refresh_failed(self, param_key: str) -> None:
+        """Avoid hammering the upstream API when a stale cache refresh fails."""
+        if param_key in self.courses_by_params:
+            self.updated_at_by_params[param_key] = datetime.now(timezone.utc)
 
     def format_weekday(self, day: str) -> str:
         """Convert weekday code to full name"""
@@ -94,7 +99,8 @@ class CourseFetcher:
                 "building": meeting.get("buildingCode", "N/A"),
                 "room": meeting.get("roomNumber", "N/A"),
                 "mode": meeting.get("meetingModeDesc", "N/A"),
-                "campus": self.format_campus(campus_id)
+                "campus": self.format_campus(campus_id),
+                "campus_name": self.format_campus(campus_id),
             }
         except Exception as e:
             logger.error(f"Error formatting meeting time: {str(e)}")
@@ -123,7 +129,7 @@ class CourseFetcher:
                 "index":
                 section.get("index", ""),
                 "instructors": [
-                    instr.get("name", "")
+                    instr.get("name", "") if isinstance(instr, dict) else str(instr)
                     for instr in section.get("instructors", [])
                 ],
                 "status":
@@ -146,7 +152,7 @@ class CourseFetcher:
                 "meeting_times": []
             }
 
-    def update_courses(self, year="2025", term="1", campus="NB") -> None:
+    def update_courses(self, year="2026", term="1", campus="NB") -> bool:
         """Fetch fresh course data from Rutgers API"""
         # Define param_key before the try block to make it available in exception handlers
         param_key = f"{year}_{term}_{campus}"
@@ -155,44 +161,47 @@ class CourseFetcher:
             params = {"year": year, "term": term, "campus": campus}
             logger.info(f"Fetching courses with parameters: {params}")
 
-            response = self.session.get(self.base_url,
-                                        params=params,
-                                        timeout=30)
+            response = self.session.get(
+                self.base_url,
+                params=params,
+                timeout=(3.05, 10),
+            )
             response.raise_for_status()
 
             courses = response.json()
-            response_size = len(response.content) / 1024  # Size in KB
-            logger.info(
-                f"Retrieved {len(courses)} courses from API (Response size: {response_size:.2f} KB)"
-            )
+            if not isinstance(courses, list):
+                raise ValueError("Rutgers courses API returned a non-list payload")
+
+            logger.info("Retrieved %s courses from Rutgers API", len(courses))
 
             if not courses:
                 logger.warning("Received empty course list from API")
-                return
-
-            # Log a sample course to verify structure
-            if courses:
-                logger.debug(
-                    f"Sample course structure: {json.dumps(courses[0], indent=2)}"
-                )
+                return False
 
             self.courses_by_params[param_key] = sorted(
                 courses, key=lambda c: c.get("courseString", ""))
-            self.last_update = datetime.now().isoformat()
-            logger.info(f"Successfully updated courses at {self.last_update}")
+            now = datetime.now(timezone.utc)
+            self.updated_at_by_params[param_key] = now
+            self.last_update = now.isoformat()
+            logger.info("Successfully updated courses at %s", self.last_update)
+            return True
 
         except requests.exceptions.Timeout:
             logger.error("Timeout while fetching courses from API")
-            self._check_and_raise_if_no_cache(param_key)
+            self._mark_refresh_failed(param_key)
+            return False
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to fetch courses from API: {str(e)}")
-            self._check_and_raise_if_no_cache(param_key)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse API response: {str(e)}")
-            self._check_and_raise_if_no_cache(param_key)
+            logger.error("Failed to fetch courses from API: %s", e)
+            self._mark_refresh_failed(param_key)
+            return False
+        except (ValueError, TypeError) as e:
+            logger.error("Failed to parse courses API response: %s", e)
+            self._mark_refresh_failed(param_key)
+            return False
         except Exception as e:
-            logger.error(f"Unexpected error updating courses: {str(e)}")
-            self._check_and_raise_if_no_cache(param_key)
+            logger.exception("Unexpected error updating courses: %s", e)
+            self._mark_refresh_failed(param_key)
+            return False
 
     def fuzzy_search_courses(self,
                              courses: List[Dict],
@@ -460,6 +469,12 @@ class CourseFetcher:
                 # Only apply filter if filter_subject is not empty
                 if filter_subject and course_subject != filter_subject:
                     continue
+
+            if 'course_number' in filters:
+                course_number = str(course.get('courseNumber', '')).strip()
+                requested_number = str(filters['course_number']).strip()
+                if requested_number and course_number != requested_number:
+                    continue
             
             # Filter by school/unit
             if 'school' in filters:
@@ -475,7 +490,7 @@ class CourseFetcher:
                 has_core_code = False
                 for core in core_codes:
                     if isinstance(core, dict):
-                        if core.get('coreCode', '') == filters['core_code']:
+                        if core.get('coreCode', core.get('code', '')) == filters['core_code']:
                             has_core_code = True
                             break
                     elif str(core) == filters['core_code']:
@@ -643,7 +658,7 @@ class CourseFetcher:
 
     def get_courses(self,
                     search: Optional[str] = None,
-                    year="2025",
+                    year="2026",
                     term="1",
                     campus="NB",
                     filters: Optional[Dict] = None) -> List[Dict]:
@@ -651,9 +666,28 @@ class CourseFetcher:
         try:
             param_key = f"{year}_{term}_{campus}"
 
-            # Update courses for these parameters if not already cached
-            if param_key not in self.courses_by_params:
-                self.update_courses(year, term, campus)
+            # Refresh lazily so importing the Flask app is fast and safe on
+            # serverless platforms. A per-parameter lock prevents duplicate
+            # upstream requests when two requests arrive on a warm instance.
+            cached_at = self.updated_at_by_params.get(param_key)
+            is_stale = (
+                cached_at is None
+                or self.cache_ttl_seconds == 0
+                or (datetime.now(timezone.utc) - cached_at).total_seconds()
+                >= self.cache_ttl_seconds
+            )
+            if param_key not in self.courses_by_params or is_stale:
+                lock = self._locks.setdefault(param_key, threading.Lock())
+                with lock:
+                    cached_at = self.updated_at_by_params.get(param_key)
+                    is_stale = (
+                        cached_at is None
+                        or self.cache_ttl_seconds == 0
+                        or (datetime.now(timezone.utc) - cached_at).total_seconds()
+                        >= self.cache_ttl_seconds
+                    )
+                    if param_key not in self.courses_by_params or is_stale:
+                        self.update_courses(year, term, campus)
 
             if not self.courses_by_params.get(param_key):
                 logger.warning(
@@ -681,27 +715,46 @@ class CourseFetcher:
             enriched_courses = []
             for course in filtered_courses:
                 try:
+                    school_data = course.get("school") or {}
+                    school = (
+                        school_data.get("description", "")
+                        if isinstance(school_data, dict)
+                        else str(school_data)
+                    )
+                    credits_data = course.get("creditsObject") or {}
+                    campus_locations = []
+                    for location in course.get("campusLocations", []) or []:
+                        if isinstance(location, dict):
+                            campus_locations.append(location.get("description", ""))
+                        elif location:
+                            campus_locations.append(str(location))
+                    core_requirements = []
+                    for core in course.get("coreCodes", []) or []:
+                        if isinstance(core, dict):
+                            core_requirements.append({
+                                "code": core.get("coreCode", core.get("code", "")),
+                                "description": core.get(
+                                    "coreCodeDescription", core.get("description", "")
+                                ),
+                            })
+                        elif core:
+                            core_requirements.append({"code": str(core), "description": ""})
+
                     enriched_course = {
                         "courseString": course.get("courseString", ""),
                         "title": course.get("title", ""),
                         "subject": course.get("subject", ""),
                         "subjectDescription": course.get("subjectDescription", ""),
                         "course_number": course.get("courseNumber", ""),
+                        "courseNumber": course.get("courseNumber", ""),
                         "description": course.get("courseDescription", ""),
                         "credits": course.get("credits", ""),
-                        "creditsDescription": course.get("creditsObject", {}).get("description", ""),
-                        "school": course.get("school", {}).get("description", ""),
-                        "campusLocations": [
-                            loc.get("description", "") for loc in course.get("campusLocations", [])
-                        ],
+                        "creditsDescription": credits_data.get("description", "") if isinstance(credits_data, dict) else str(credits_data),
+                        "school": school,
+                        "campusLocations": campus_locations,
                         "prerequisites": course.get("preReqNotes", ""),
-                        "coreRequirements": [
-                            {
-                                "code": core.get("coreCode", ""),
-                                "description": core.get("coreCodeDescription", "")
-                            }
-                            for core in course.get("coreCodes", [])
-                        ],
+                        "coreRequirements": core_requirements,
+                        "coreCodes": core_requirements,
                         "sections": [
                             self.format_section(section) for section in course.get("sections", [])
                         ]

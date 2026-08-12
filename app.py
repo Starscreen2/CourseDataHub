@@ -1,28 +1,30 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory, render_template
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_caching import Cache
-from apscheduler.schedulers.background import BackgroundScheduler
-from course_fetcher import CourseFetcher
-from room_fetcher import RoomFetcher  # Import the new RoomFetcher class
-from salary_api import SalaryData  # Import SalaryData class for salaries
-from utils.flask_utils import get_request_params
 import logging
 
+from flask import Flask, jsonify, request, render_template
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from course_fetcher import CourseFetcher
+from room_fetcher import RoomFetcher
+from salary_api import SalaryData
+from utils.flask_utils import get_request_params
+
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
+app = Flask(__name__, static_folder="static", template_folder="templates")
+app.secret_key = os.environ.get("SESSION_SECRET") or os.urandom(32)
 
-# Configure CORS
+# Same-origin requests (the bundled frontend) do not need CORS. If the API is
+# intentionally consumed by another origin, opt in with CORS_ORIGIN.
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET')
+    cors_origin = os.environ.get("CORS_ORIGIN")
+    if cors_origin:
+        response.headers["Access-Control-Allow-Origin"] = cors_origin
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET"
     return response
 
 # Configure rate limiting
@@ -30,24 +32,14 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["10 per minute"],
-    storage_uri="memory://"
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
 )
 
-# Configure caching
-cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
-
-# Initialize course fetcher
+# Course data is fetched lazily on the first request for a given term. This is
+# important for Vercel: imports must stay fast and background threads are not
+# guaranteed to survive between invocations.
 course_fetcher = CourseFetcher()
-
-# Initialize room fetcher with course fetcher
 room_fetcher = RoomFetcher(course_fetcher)
-
-# Initialize scheduler
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=lambda: course_fetcher.update_courses("2025", "1", "NB"), trigger="interval", minutes=15)
-scheduler.start()
-
-# Initialize SalaryData for salaries
 salary_data = SalaryData()
 
 @app.route('/')
@@ -59,12 +51,17 @@ def search():
     params = get_request_params()
     return render_template('search.html', year=params['year'], term=params['term'], campus=params['campus'])
 
+@app.route('/docs')
+def docs():
+    return render_template('docs.html')
+
 @app.route('/api/health')
 @limiter.exempt
 def health_check():
     return jsonify({
         "status": "healthy",
-        "last_update": course_fetcher.last_update
+        "last_update": course_fetcher.last_update,
+        "cached_terms": len(course_fetcher.courses_by_params),
     })
 
 @app.route('/api/courses')
@@ -72,7 +69,7 @@ def health_check():
 def get_courses():
     try:
         params = get_request_params()
-        search = request.args.get('search', '')
+        search = request.args.get('search', '').strip()[:100]
         
         # Extract filter parameters
         filter_params = {}
@@ -155,6 +152,10 @@ def get_courses():
         if subject:
             filter_params['subject'] = subject
 
+        course_number = request.args.get('course_number', '').strip()
+        if course_number:
+            filter_params['course_number'] = course_number
+
         courses = course_fetcher.get_courses(
             search=search, 
             year=params['year'], 
@@ -174,30 +175,32 @@ def get_courses():
             "message": "Failed to fetch course data"
         }), 500
 
-@app.route('/static/<path:path>')
-def serve_static(path):
-    return send_from_directory('static', path)
-
 @app.errorhandler(429)
 def ratelimit_handler(e):
-    retry_seconds = int(e.description.split('in')[1].split('seconds')[0].strip())
-    return jsonify({
+    retry_after = getattr(e, "retry_after", None)
+    response = jsonify({
         "status": "error",
         "message": "Please slow down! You can only make 10 requests per minute.",
-        "retry_after": retry_seconds,
-        "wait_message": f"Please wait {retry_seconds} seconds before trying again."
-    }), 429
+        "retry_after": retry_after,
+        "wait_message": (
+            f"Please wait {retry_after} seconds before trying again."
+            if retry_after is not None else "Please try again later."
+        ),
+    })
+    if retry_after is not None:
+        response.headers["Retry-After"] = str(retry_after)
+    return response, 429
 
 @app.route('/api/salary', methods=['GET'])
 @limiter.limit("50 per minute")
 def get_salary():
-    instructor_name = request.args.get('name', '').strip()
+    instructor_name = request.args.get('name', '').strip()[:120]
 
     if not instructor_name:
-        print("❌ No instructor name received!")
+        logger.info("Salary lookup received no instructor name")
         return jsonify({"error": "Missing instructor name"}), 400
 
-    print(f"🔍 Salary API received request for: '{instructor_name}'")  # Debugging
+    logger.info("Salary lookup for %r", instructor_name)
 
     salary_info = salary_data.get_salary_by_instructor(instructor_name)
 
@@ -213,7 +216,7 @@ def get_salary():
             "hire_date": salary_entry.get("Hire Date", "Unknown")
         })
 
-    print("⚠️ No salary data found!")
+    logger.info("No salary data found for %r", instructor_name)
     return jsonify({"error": "No salary data found"}), 404
 
 @app.route('/room-search')
@@ -242,7 +245,7 @@ def get_rooms():
     """API endpoint to get rooms matching a query, with optional availability filtering"""
     try:
         params = get_request_params()
-        search = request.args.get('search', '')
+        search = request.args.get('search', '').strip()[:100]
         
         # Get availability filter parameters
         filter_available = request.args.get('filter_available', '').lower() == 'true'
@@ -280,7 +283,8 @@ def get_rooms():
                 year=params['year'], 
                 term=params['term'], 
                 campus=params['campus'],
-                search=search
+                search=search,
+                campus_filters=campus_filters,
             )
         else:
             # Regular room search with filters

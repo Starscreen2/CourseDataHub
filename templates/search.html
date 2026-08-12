@@ -562,17 +562,6 @@
     </div>
 
     <script>
-        async function loadSalaries() {
-            try {
-                const response = await fetch('/static/rutgers_salaries.json');
-                const salaryJson = await response.json();
-                return salaryJson.data;
-            } catch (error) {
-                console.error("Failed to load data:", error);
-                return [];
-            }
-        }
-
         // Filter chevron toggle
         const filterPanel = document.getElementById('filterPanel');
         const filterChevron = document.getElementById('filterChevron');

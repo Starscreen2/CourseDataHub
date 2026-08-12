@@ -1,0 +1,14 @@
+.git
+.cache
+.config
+.cursor
+.local
+.pythonlibs
+__pycache__
+*.pyc
+data/*.db
+data/*.sql
+.replit
+replit.nix
+replit.md
+uv.lock

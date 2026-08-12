@@ -1,32 +1,45 @@
-[Rutgers Course Search](https://rutgers.replit.app/)
+# Rutgers Course Search
 
-## Features
-- Real-time course data from Rutgers API
-- Search by title, subject, or course number
-- Filter by year, term, and campus
-- Detailed course info (sections, times, instructors, etc.)
-- Detailed classroom search (sections, times, instructors, occupancy, ect.)
+Flask app for searching Rutgers courses, classroom schedules, and public instructor salary data.
 
-## Tech Stack
-- Backend: Flask (Python 3.11)
-- Frontend: Bootstrap 5.3
-- Rate Limiting & Caching
+## Run locally
 
-## API Endpoints
-- GET /api/courses: Get course info with filters
-- GET /api/health: Check API status
-
-## Rate Limits
-- 200 requests/day
-- 50 requests/hour
-- 30 requests/minute for /api/courses
-
-## Running Locally
 ```bash
-python main.py  # Development (port 5000)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
 
-Structure
-/app.py: Main Flask app
-/course_fetcher.py: Data processing
-/templates/: HTML templates
-/static/: Assets
+Open <http://localhost:5000>.
+
+## Deploy to Vercel
+
+This repository is configured for Vercel's zero-configuration Flask deployment. The top-level `app.py` exports the Flask instance, `requirements.txt` declares the runtime dependencies, and `vercel.json` adds safe static-asset caching.
+
+```bash
+npx vercel
+npx vercel --prod
+```
+
+Recommended environment variables:
+
+- `SESSION_SECRET`: a long random value for Flask sessions
+- `COURSE_CACHE_TTL_SECONDS`: optional in-process course cache lifetime (default: `900`)
+- `CORS_ORIGIN`: optional origin if a separate frontend calls the API
+- `LOG_LEVEL`: optional logging level (default: `INFO`)
+
+Course data is fetched lazily from the Rutgers API on the first request for each year/term/campus combination. This keeps cold starts fast and avoids background scheduler threads, which are not reliable in serverless functions.
+
+## Routes
+
+- `/` — term/campus selection
+- `/search` — course search
+- `/room-search` — room search
+- `/room-details` — room schedule
+- `/docs` — API documentation
+- `/api/courses` — course search API
+- `/api/rooms` — room search API
+- `/api/room-schedule` — room schedule API
+- `/api/salary` — instructor salary lookup
+- `/api/health` — health check

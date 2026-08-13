@@ -2,7 +2,7 @@
 name = "rutgers-course-search"
 version = "0.1.0"
 description = "Rutgers course, room, and instructor salary search"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "beautifulsoup4>=4.13,<5",
     "flask>=3.1,<4",

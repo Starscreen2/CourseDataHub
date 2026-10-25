@@ -7,6 +7,11 @@
     --glass-sheen: rgba(255, 255, 255, 0.14);
     --glass-shadow: rgba(31, 41, 55, 0.12);
     --glass-ease: cubic-bezier(0.2, 0.9, 0.22, 1);
+    --glass-radius-shell: 30px;
+    --glass-radius-shell-compact: 24px;
+    --glass-radius-panel: 20px;
+    --glass-radius-field: 14px;
+    --glass-radius-pill: 999px;
 }
 
 body {
@@ -29,7 +34,7 @@ body {
     isolation: isolate;
     min-height: 64px;
     padding: 0.55rem 1.1rem;
-    border-radius: 30px;
+    border-radius: var(--glass-radius-shell);
     box-shadow: 0 8px 24px rgba(31, 41, 55, 0.07);
     -webkit-backdrop-filter: blur(2px) saturate(1.1);
     backdrop-filter: blur(2px) saturate(1.1);
@@ -67,7 +72,7 @@ body {
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(157, 0, 40, 0.28);
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: transparent;
     color: var(--glass-accent);
     box-shadow: inset 0 1px 0 var(--glass-reflection), 0 2px 8px rgba(31, 41, 55, 0.05);
@@ -91,7 +96,7 @@ body {
 .dropdown-menu {
     z-index: 1031;
     border: 1px solid var(--glass-edge);
-    border-radius: 18px;
+    border-radius: var(--glass-radius-panel);
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 12px 28px var(--glass-shadow), inset 0 1px 0 var(--glass-reflection);
     -webkit-backdrop-filter: blur(12px) saturate(1.15);
@@ -124,7 +129,7 @@ body {
     padding: 4px;
     overflow: hidden;
     border: 1px solid rgba(74, 87, 106, 0.2);
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: transparent;
     box-shadow:
         inset 0 1px 0 var(--glass-reflection),
@@ -161,7 +166,7 @@ body {
     justify-content: center;
     padding: 0.55rem 1rem;
     border: 0 !important;
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: transparent !important;
     color: #526073 !important;
     font-weight: 600;
@@ -201,7 +206,7 @@ body {
     overflow: hidden;
     transform: translateX(var(--glass-capsule-x, 0px));
     border: 1px solid rgba(157, 0, 40, 0.24);
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: linear-gradient(155deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.82),
@@ -253,7 +258,7 @@ body {
 
 .btn:not(.btn-link):not(.btn-close) {
     min-height: 44px;
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     transition: transform 180ms var(--glass-ease), color 160ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -336,7 +341,7 @@ button.btn-close,
     min-width: 44px;
     min-height: 44px;
     border: 1px solid rgba(74, 87, 106, 0.2);
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     box-shadow: inset 0 1px 0 var(--glass-reflection);
     -webkit-backdrop-filter: blur(2px) saturate(1.1);
     backdrop-filter: blur(2px) saturate(1.1);
@@ -348,7 +353,7 @@ input.form-control,
 select.form-control {
     min-height: 44px;
     border: 1px solid rgba(74, 87, 106, 0.24);
-    border-radius: 14px;
+    border-radius: var(--glass-radius-field);
     background-color: transparent;
     color: var(--glass-ink);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -384,7 +389,7 @@ select.form-control:focus {
 
 .floating-planner .floating-button {
     border: 1px solid rgba(157, 0, 40, 0.38);
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: transparent;
     color: var(--glass-accent);
     box-shadow:
@@ -411,6 +416,15 @@ select.form-control:focus {
 .view-toggle {
     background: transparent;
     box-shadow: inset 0 1px 0 var(--glass-reflection), 0 3px 10px rgba(31, 41, 55, 0.06);
+}
+
+/* Keep the planner shell and segmented track in the same radius family. */
+.planner-popup .planner-content {
+    border-radius: var(--glass-radius-shell);
+}
+
+.planner-content .view-toggle {
+    border-radius: var(--glass-radius-pill);
 }
 
 .planner-content .view-toggle > .view-btn {
@@ -452,7 +466,7 @@ select.form-control:focus {
 /* Keep search inputs inside Bootstrap input groups and match the shared glass controls. */
 #search.form-control {
     border: 1px solid rgba(74, 87, 106, 0.24);
-    border-radius: 14px;
+    border-radius: var(--glass-radius-field);
 }
 
 .input-group #search.form-control {
@@ -467,7 +481,7 @@ select.form-control:focus {
 .search-form > form > .card:has(#availabilityFilters) {
     overflow: hidden;
     border: 1px solid rgba(74, 87, 106, 0.2);
-    border-radius: 20px;
+    border-radius: var(--glass-radius-panel);
     background: transparent;
     box-shadow: 0 5px 16px rgba(31, 41, 55, 0.05), inset 0 1px 0 var(--glass-reflection);
     -webkit-backdrop-filter: blur(2px) saturate(1.1);
@@ -494,7 +508,7 @@ select.form-control:focus {
     .navbar > .container {
         min-height: 60px;
         padding: 0.45rem 0.8rem;
-        border-radius: 24px;
+        border-radius: var(--glass-radius-shell-compact);
     }
 
     .nav-tabs,
@@ -544,5 +558,12 @@ select.form-control:focus {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+
+@media (max-width: 576px) {
+    .planner-popup .planner-content {
+        border-radius: 0;
     }
 }

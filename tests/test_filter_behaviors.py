@@ -134,6 +134,14 @@ class CourseFilterTests(unittest.TestCase):
 
 
 class RoomFilterTests(unittest.TestCase):
+    def test_room_details_without_a_room_shows_the_validation_message(self):
+        response = app_module.app.test_client().get(
+            "/room-details?year=2026&term=1&campus=NB"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Building and room must be specified", response.data)
+
     def test_availability_search_preserves_type_and_campus_filters(self):
         courses = [
             {

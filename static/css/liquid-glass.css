@@ -457,6 +457,10 @@ select.form-control:focus {
     white-space: nowrap;
 }
 
+.room-search-error {
+    border-radius: var(--glass-radius-card);
+}
+
 .btn:focus-visible,
 .form-control:focus-visible,
 .form-select:focus-visible,
@@ -471,6 +475,19 @@ select.form-control:focus {
 #search.form-control {
     border: 1px solid rgba(74, 87, 106, 0.24);
     border-radius: var(--glass-radius-field);
+}
+
+#roomSearchForm .input-group > #search.form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#roomSearchForm .input-group > #clearSearch.btn {
+    margin-left: -1px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: var(--glass-radius-field);
+    border-bottom-right-radius: var(--glass-radius-field);
 }
 
 .input-group #search.form-control {
@@ -528,10 +545,29 @@ select.form-control:focus {
     color: var(--glass-ink);
 }
 
-/* Keep legacy result cards and planner details on the same radius scale. */
-.search-result-item.card,
+/* Keep result and room schedule cards on the shared radius scale. */
+#scheduleContent > .card,
 #results .card {
     border-radius: var(--glass-radius-card);
+}
+
+#scheduleContent > .card > .card-header:first-child,
+#results .card > .card-header:first-child {
+    border-top-left-radius: calc(var(--glass-radius-card) - 1px);
+    border-top-right-radius: calc(var(--glass-radius-card) - 1px);
+}
+
+/* Carry the shared radius scale through the standalone API documentation page. */
+.endpoint-card {
+    border-radius: var(--glass-radius-card);
+}
+
+.endpoint-card .example {
+    border-radius: var(--glass-radius-control);
+}
+
+.endpoint-card pre {
+    border-radius: var(--glass-radius-control);
 }
 
 .planner-popup .calendar-view,

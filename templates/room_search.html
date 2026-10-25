@@ -7,8 +7,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=7">
-    <link rel="stylesheet" href="/static/css/floating-planner.css?v=8">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=9">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=9">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/course-planner.js?v=13"></script>
@@ -44,6 +44,10 @@
 
     <div class="container">
         <h2 class="mb-4">Search</h2>
+
+        {% if error %}
+        <div class="alert alert-warning room-search-error" role="alert">{{ error }}</div>
+        {% endif %}
 
         <div class="search-params mt-4">
             <div class="search-params-content">

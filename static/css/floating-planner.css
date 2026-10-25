@@ -1171,10 +1171,15 @@
 }
 
 .section-info {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: block;
     margin-top: 8px;
+}
+
+.section-info > .d-flex {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
 }
 
 .section-info .badge {

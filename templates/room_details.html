@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=11">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=12">
     <link rel="stylesheet" href="/static/css/floating-planner.css?v=11">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -42,8 +42,13 @@
         }
         
         .status-scheduled {
-            color: #dc3545;
+            color: #842029;
             background-color: #f8d7da;
+        }
+
+        .status-incomplete {
+            color: #664d03;
+            background-color: #fff3cd;
         }
         
         .schedule-table th {
@@ -181,6 +186,17 @@
         </div>
 
         <div id="scheduleContent" style="display: none;">
+            <div id="scheduleWarning" class="alert alert-warning d-none" role="status"></div>
+            <div id="unscheduledClassesCard" class="card mb-4 d-none">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Meetings Missing a Weekday</h5>
+                </div>
+                <div class="card-body">
+                    <p>Rutgers listed these classes in this room without a weekday. They are not placed in the weekly grid, and availability searches exclude this room because its schedule cannot be verified.</p>
+                    <div id="unscheduledClasses"></div>
+                </div>
+            </div>
+
             <!-- Daily Availability Section -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -298,6 +314,9 @@
             const scheduleContent = document.getElementById('scheduleContent');
             const availabilityRow = document.getElementById('availabilityRow');
             const weeklySchedule = document.getElementById('weeklySchedule');
+            const scheduleWarning = document.getElementById('scheduleWarning');
+            const unscheduledClassesCard = document.getElementById('unscheduledClassesCard');
+            const unscheduledClasses = document.getElementById('unscheduledClasses');
             
             const building = {{ building|tojson }};
             const room = {{ room|tojson }};
@@ -326,6 +345,26 @@
                     const dailySchedule = schedule.daily_schedule && typeof schedule.daily_schedule === 'object'
                         ? schedule.daily_schedule
                         : {};
+                    const hasIncompleteSchedule = schedule.has_incomplete_schedule === true
+                        || Object.values(dailySchedule).some(daySchedule => daySchedule?.status === 'Schedule Incomplete');
+                    const unresolvedMeetings = Array.isArray(schedule.unscheduled_classes)
+                        ? schedule.unscheduled_classes
+                        : [];
+
+                    if (hasIncompleteSchedule) {
+                        scheduleWarning.textContent = 'At least one meeting has incomplete day or time data. Availability cannot be confirmed for the affected period; rooms with unresolved schedule data are omitted from availability results.';
+                        scheduleWarning.classList.remove('d-none');
+                    }
+                    if (unresolvedMeetings.length) {
+                        unscheduledClasses.innerHTML = unresolvedMeetings.map(classItem => `
+                            <div class="class-item">
+                                <h6>${escapeHTML(classItem.course_code)} - ${escapeHTML(classItem.course_name)}</h6>
+                                <p class="mb-1"><strong>Section:</strong> ${escapeHTML(classItem.section)}</p>
+                                <p class="mb-0"><strong>Weekday:</strong> Not provided · <strong>Time:</strong> ${escapeHTML(classItem.start_time)} - ${escapeHTML(classItem.end_time)}</p>
+                            </div>
+                        `).join('');
+                        unscheduledClassesCard.classList.remove('d-none');
+                    }
                     let availabilityHTML = '';
                     
                     days.forEach(day => {
@@ -333,7 +372,9 @@
                             ? dailySchedule[day]
                             : { status: 'Schedule unavailable', classes: [] };
                         const status = String(daySchedule.status || 'Schedule unavailable');
-                        const statusClass = status === 'Available All Day' ? 'status-available' : 'status-scheduled';
+                        const statusClass = status === 'Available All Day'
+                            ? 'status-available'
+                            : status === 'Schedule Incomplete' ? 'status-incomplete' : 'status-scheduled';
                         
                         availabilityHTML += `
                             <td>

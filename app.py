@@ -270,19 +270,18 @@ def get_rooms():
         start_time = request.args.get('start_time', '')
         end_time = request.args.get('end_time', '')
         
-        # Get building type filters
-        building_types = []
-        if request.args.get('type_classroom', '').lower() == 'true':
-            building_types.append('classroom')
-        if request.args.get('type_lecture', '').lower() == 'true':
-            building_types.append('lecture')
-        if request.args.get('type_lab', '').lower() == 'true':
-            building_types.append('lab')
-        building_type_filter_active = (
-            request.args.get('filter_building_types', '').lower() == 'true'
-            or bool(building_types)
+        # The Rutgers schedule feed has no reliable building type data. Reject
+        # legacy type-filter requests rather than silently returning incomplete
+        # or misleading results.
+        legacy_type_filter_params = (
+            'filter_building_types', 'type_classroom', 'type_lecture', 'type_lab'
         )
-        
+        if any(request.args.get(name, '').lower() == 'true' for name in legacy_type_filter_params):
+            return jsonify({
+                "status": "error",
+                "message": "Room type filters are unavailable because the Rutgers schedule feed does not classify rooms by type.",
+            }), 400
+
         # Get campus filters
         campus_filters = []
         if request.args.get('campus_college_ave', '').lower() == 'true':
@@ -317,7 +316,7 @@ def get_rooms():
                     "message": "Choose a valid day and an increasing start/end time range.",
                 }), 400
 
-        if (building_type_filter_active and not building_types) or (campus_filter_active and not campus_filters):
+        if campus_filter_active and not campus_filters:
             rooms = []
         elif filter_available:
             # Filter rooms by availability while preserving the building and campus selections.
@@ -330,7 +329,6 @@ def get_rooms():
                 term=params['term'],
                 campus=params['campus'],
                 search=search,
-                building_types=building_types if building_type_filter_active else None,
                 campus_filters=campus_filters if campus_filter_active else None,
             )
         else:
@@ -340,7 +338,6 @@ def get_rooms():
                 year=params['year'],
                 term=params['term'],
                 campus=params['campus'],
-                building_types=building_types if building_type_filter_active else None,
                 campus_filters=campus_filters if campus_filter_active else None,
             )
         
@@ -349,7 +346,7 @@ def get_rooms():
             "data": rooms,
             "count": len(rooms),
             "filter_applied": bool(filter_available),
-            "building_types_filtered": building_type_filter_active,
+            "building_types_filtered": False,
             "campus_filtered": campus_filter_active,
             "last_update": course_fetcher.last_update
         })
@@ -378,7 +375,12 @@ def get_room_schedule():
         room_schedule = room_fetcher.get_room_schedule(
             building, room, year=params['year'], term=params['term'], campus=params['campus']
         )
-        
+        if room_schedule is None:
+            return jsonify({
+                "status": "error",
+                "message": "Room not found for the selected term and campus.",
+            }), 404
+
         return jsonify({
             "status": "success",
             "data": room_schedule,

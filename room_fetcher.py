@@ -1,5 +1,6 @@
 import logging
 import datetime
+import re
 from typing import Dict, List, Optional
 from course_fetcher import CourseFetcher
 from rapidfuzz import fuzz
@@ -12,14 +13,6 @@ BUILDING_COORDINATES = {
     'HILL': {'lat': 40.5009, 'lng': -74.4475},  # Hill Center
     'BECK': {'lat': 40.5010, 'lng': -74.4476},  # Beck Hall
     # Add more buildings as needed
-}
-
-# Building type mappings
-BUILDING_TYPES = {
-    'ARC': 'classroom',
-    'HILL': 'lecture',
-    'BECK': 'classroom',
-    # Add more mappings as needed
 }
 
 class RoomFetcher:
@@ -40,12 +33,9 @@ class RoomFetcher:
         """
         return BUILDING_COORDINATES.get(building.upper())
 
-    def _get_building_type(self, building: str) -> str:
-        """
-        Get the type of building (classroom, lecture hall, lab, etc.).
-        Returns 'unknown' if type is not specified.
-        """
-        return BUILDING_TYPES.get(building.upper(), 'unknown')
+    @staticmethod
+    def _normalize_search(value: str) -> str:
+        return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
 
     def _extract_rooms_from_courses(self, courses: List[Dict]) -> List[Dict]:
         """
@@ -72,9 +62,8 @@ class RoomFetcher:
                     room_key = f"{building}_{room}"
                     
                     if room_key not in rooms:
-                        # Get building coordinates and type
+                        # The schedule feed does not classify room/building types.
                         coordinates = self._get_room_coordinates(building)
-                        building_type = self._get_building_type(building)
                         
                         rooms[room_key] = {
                             'building': building,
@@ -88,7 +77,7 @@ class RoomFetcher:
                             'campus_name': meeting_time.get('campus_name') or meeting_time.get('campus', ''),
                             'latitude': coordinates['lat'] if coordinates else None,
                             'longitude': coordinates['lng'] if coordinates else None,
-                            'building_type': building_type
+                            'building_type': 'unknown'
                         }
         
         return list(rooms.values())
@@ -102,7 +91,7 @@ class RoomFetcher:
         return self._extract_rooms_from_courses(courses)
 
     def search_rooms(self, query: str, year="2026", term="1", campus="NB",
-                    building_types: List[str] = None, campus_filters: List[str] = None,
+                    campus_filters: List[str] = None,
                     courses: Optional[List[Dict]] = None) -> List[Dict]:
         """
         Search for rooms matching the given query using fuzzy matching and semantic search.
@@ -111,11 +100,37 @@ class RoomFetcher:
         """
         if courses is None:
             courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
-        all_rooms = self.get_all_rooms(year, term, campus, courses=courses)
-        
-        # Apply building type filters
-        if building_types:
-            all_rooms = [room for room in all_rooms if room.get('building_type') in building_types]
+        room_catalog = self.get_all_rooms(year, term, campus, courses=courses)
+        all_rooms = room_catalog.copy()
+
+        # A known building plus a room number is a precise lookup. Keep it out
+        # of the fuzzy path so nearby room numbers cannot appear as matches.
+        query_parts = self._normalize_search(query).split()
+        if len(query_parts) >= 2 and any(character.isdigit() for character in query_parts[-1]):
+            requested_room = query_parts[-1]
+            requested_building = " ".join(query_parts[:-1])
+
+            def matches_building(room: Dict) -> bool:
+                return requested_building in {
+                    self._normalize_search(room.get('building', '')),
+                    self._normalize_search(room.get('building_name', '')),
+                }
+
+            if any(matches_building(room) for room in room_catalog):
+                # Campus filters still apply; an exact room on another campus
+                # must not leak into the result.
+                if campus_filters:
+                    normalized_campuses = {str(value).strip().casefold() for value in campus_filters}
+                    all_rooms = [
+                        room for room in all_rooms
+                        if str(room.get('campus_name') or room.get('campus') or '').strip().casefold()
+                        in normalized_campuses
+                    ]
+                return [
+                    room for room in all_rooms
+                    if self._normalize_search(room.get('room', '')) == requested_room
+                    and matches_building(room)
+                ]
         
         # Apply campus filters
         if campus_filters:
@@ -260,43 +275,37 @@ class RoomFetcher:
         return sorted_rooms
 
     def _is_time_in_range(self, target_start: str, target_end: str, class_start: str, class_end: str) -> bool:
+        """Return whether the target interval overlaps a class interval.
+
+        Unknown class times are treated as occupied so availability checks do
+        not claim a room is free when the schedule data is incomplete.
         """
-        Check if a target time range overlaps with a class time range.
-        All times should be in 12-hour format (e.g., '10:00 AM', '2:30 PM').
-        
-        Returns True if there is any overlap between the target range and class range.
-        """
-        if class_start == 'TBA' or class_end == 'TBA':
+        target_start_minutes = self._time_to_minutes(target_start)
+        target_end_minutes = self._time_to_minutes(target_end)
+        class_start_minutes = self._time_to_minutes(class_start)
+        class_end_minutes = self._time_to_minutes(class_end)
+
+        if target_start_minutes >= 24 * 60 or target_end_minutes >= 24 * 60:
             return False
-            
-        try:
-            # Parse all times to datetime objects for comparison
-            # We use a dummy date just to have a complete datetime object
-            dummy_date = datetime.datetime.today().date()
-            
-            # Convert to datetime objects
-            time_format = '%I:%M %p'  # 12-hour format with AM/PM
-            target_start_dt = datetime.datetime.strptime(target_start, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            target_end_dt = datetime.datetime.strptime(target_end, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            class_start_dt = datetime.datetime.strptime(class_start, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            class_end_dt = datetime.datetime.strptime(class_end, time_format).replace(year=dummy_date.year, month=dummy_date.month, day=dummy_date.day)
-            
-            # Check for any overlap between the ranges
-            # Two ranges overlap if one range's start is before the other's end and vice versa
-            return (target_start_dt < class_end_dt and class_start_dt < target_end_dt)
-        except ValueError as e:
-            self.logger.error(f"Error parsing time: {e}")
+        if target_start_minutes >= target_end_minutes:
             return False
+        if class_start_minutes >= 24 * 60 or class_end_minutes >= 24 * 60:
+            return True
+        if class_start_minutes >= class_end_minutes:
+            return True
+
+        return target_start_minutes < class_end_minutes and class_start_minutes < target_end_minutes
 
     @staticmethod
     def _time_to_minutes(value: str) -> int:
-        """Return minutes since midnight for stable chronological sorting."""
-        if not value or value == 'TBA':
+        """Return minutes since midnight, or a sentinel for missing/invalid time."""
+        text = str(value or '').strip()
+        if not text or text.upper() in {'TBA', 'N/A', 'NA', 'NONE', 'NULL'}:
             return 24 * 60 + 1
         try:
-            parsed = datetime.datetime.strptime(value, '%I:%M %p')
+            parsed = datetime.datetime.strptime(text, '%I:%M %p')
             return parsed.hour * 60 + parsed.minute
-        except ValueError:
+        except (TypeError, ValueError):
             return 24 * 60 + 1
     
     def _filter_by_campus(self, rooms: List[Dict], campus_filter: str) -> List[Dict]:
@@ -361,96 +370,77 @@ class RoomFetcher:
 
     def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2026",
                             term="1", campus="NB", campus_filter="", search: str = "",
-                            campus_filters: Optional[List[str]] = None,
-                            building_types: Optional[List[str]] = None) -> List[Dict]:
-        """
-        Find rooms that are available during a specific day and time range.
-        
-        Parameters:
-        - day: Day of the week (Monday, Tuesday, etc.)
-        - start_time: Start time of range to check (e.g., '10:00 AM')
-        - end_time: End time of range to check (e.g., '11:00 AM')
-        - year, term, campus: Academic period parameters
-        - campus_filter: Optional campus filter (e.g., "College Ave", "Busch")
-        - search: Optional search query to filter rooms
-        
-        Returns a list of available rooms with their details.
-        """
-        # Fetch course data once; room extraction and availability checks both
-        # use the same snapshot instead of repeating the expensive enrichment.
+                            campus_filters: Optional[List[str]] = None) -> List[Dict]:
+        """Find rooms with no known or unresolved meeting during the requested interval."""
+        days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days_by_key = {weekday.casefold(): weekday for weekday in days_of_week}
+        requested_day = days_by_key.get(str(day or "").strip().casefold())
+        if not requested_day:
+            return []
+
         courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
         all_rooms = self.search_rooms(
             search,
             year,
             term,
             campus,
-            building_types=building_types,
             campus_filters=campus_filters,
             courses=courses,
         )
-        
-        # Apply campus filter if specified
-        filters = [campus_filter] if campus_filter else []
-        if filters and not campus_filters:
-            normalized_campuses = {str(value).strip().lower() for value in filters}
+
+        if campus_filter and not campus_filters:
+            normalized_campus = str(campus_filter).strip().casefold()
             all_rooms = [
                 room for room in all_rooms
-                if str(room.get('campus_name') or room.get('campus') or '').strip().lower()
-                in normalized_campuses
+                if str(room.get('campus_name') or room.get('campus') or '').strip().casefold()
+                == normalized_campus
             ]
-            
+
         available_rooms = []
-        
         for room_info in all_rooms:
             building = room_info['building']
             room = room_info['room']
-            
-            # Assume room is available until proven otherwise
             is_available = True
-            
-            # Check all courses for this room
+
             for course in courses:
                 for section in course.get('sections', []):
                     for meeting_time in section.get('meeting_times', []):
-                        # Skip if not this room or day
-                        if (meeting_time.get('building') != building or 
-                            meeting_time.get('room') != room or
-                            meeting_time.get('day') != day):
+                        if meeting_time.get('building') != building or meeting_time.get('room') != room:
                             continue
-                        
-                        # Check if our target time range overlaps with this class's time range
-                        class_start = meeting_time.get('start_time', {}).get('formatted', 'TBA')
-                        class_end = meeting_time.get('end_time', {}).get('formatted', 'TBA')
-                        
+
+                        meeting_day = str(meeting_time.get('day') or '').strip()
+                        normalized_meeting_day = days_by_key.get(meeting_day.casefold())
+                        if not normalized_meeting_day:
+                            # A room-assigned meeting with no usable day could
+                            # occupy any day, so do not report this room free.
+                            is_available = False
+                            break
+                        if normalized_meeting_day != requested_day:
+                            continue
+
+                        class_start = (meeting_time.get('start_time') or {}).get('formatted', 'TBA')
+                        class_end = (meeting_time.get('end_time') or {}).get('formatted', 'TBA')
                         if self._is_time_in_range(start_time, end_time, class_start, class_end):
                             is_available = False
                             break
-                    
                     if not is_available:
                         break
-                
                 if not is_available:
                     break
-            
-            # If still available after checking all courses, add to our list
+
             if is_available:
-                # Add availability info to the room object
                 room_with_availability = room_info.copy()
                 room_with_availability['is_available'] = True
-                room_with_availability['checked_day'] = day
+                room_with_availability['checked_day'] = requested_day
                 room_with_availability['checked_start_time'] = start_time
                 room_with_availability['checked_end_time'] = end_time
                 available_rooms.append(room_with_availability)
-        
+
         return available_rooms
 
-    def get_room_schedule(self, building: str, room: str, year="2026", term="1", campus="NB") -> Dict:
-        """
-        Get the schedule for a specific room, organized by day and time.
-        """
+    def get_room_schedule(self, building: str, room: str, year="2026", term="1", campus="NB") -> Optional[Dict]:
+        """Get a room's weekly schedule and surface incomplete meeting data."""
         courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
-        
-        # Initialize the schedule structure
         days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         schedule = {
             "room_info": {
@@ -459,90 +449,94 @@ class RoomFetcher:
                 "full_name": f"{building} {room}",
             },
             "daily_schedule": {day: [] for day in days_of_week},
-            "weekly_schedule": []
+            "weekly_schedule": [],
+            "unscheduled_classes": [],
+            "has_incomplete_schedule": False,
         }
-        
-        # Get all classes in this room
+        room_found = False
+        incomplete_days = set()
+        has_unknown_day = False
+
         for course in courses:
             for section in course.get('sections', []):
                 for meeting_time in section.get('meeting_times', []):
-                    if (meeting_time.get('building') == building and 
-                        meeting_time.get('room') == room and
-                        meeting_time.get('day')):  # Only include meetings with a defined day
-                        
-                        day = meeting_time.get('day')
-                        
-                        # Extract instructors properly
-                        instructors = []
-                        
-                        # First try to get from instructors field which is the preferred source
-                        if section.get('instructors'):
-                            # Handle different data structures for instructors
-                            instructor_list = section.get('instructors', [])
-                            for inst in instructor_list:
-                                if isinstance(inst, dict) and inst.get('name'):
-                                    instructors.append({"name": inst.get('name')})
-                                elif isinstance(inst, str):
-                                    instructors.append({"name": inst})
-                        
-                        # If no instructors found, try instructorsText field
-                        elif section.get('instructorsText'):
-                            instructor_text = section.get('instructorsText', '')
-                            if instructor_text and instructor_text.strip() != '':
-                                if ',' in instructor_text:
-                                    # Split by comma if multiple instructors 
-                                    instructor_names = [name.strip() for name in instructor_text.split(',')]
-                                    instructors = [{"name": name} for name in instructor_names if name]
-                                else:
-                                    # Single instructor
-                                    instructors = [{"name": instructor_text.strip()}]
-                        
-                        # As a fallback (should rarely happen)
-                        if not instructors:
-                            instructors = [{"name": "TBA"}]
-                        
-                        # Create class entry
-                        class_entry = {
-                            "course_name": course.get('title', 'Unknown'),
-                            "course_code": course.get('courseString', 'Unknown'),
-                            "section": section.get('number', 'Unknown'),
-                            "instructors": instructors,
-                            "instructor_text": section.get('instructorsText', 'TBA'),
-                            "start_time": meeting_time.get('start_time', {}).get('formatted', 'TBA'),
-                            "end_time": meeting_time.get('end_time', {}).get('formatted', 'TBA'),
-                            "meeting_mode": meeting_time.get('mode', 'Unknown'),
-                        }
-                        
-                        # Add to daily schedule
-                        if day in schedule["daily_schedule"]:
-                            schedule["daily_schedule"][day].append(class_entry)
-                        
-                        # Also add to the weekly schedule list
-                        weekly_entry = class_entry.copy()
-                        weekly_entry["day"] = day
-                        schedule["weekly_schedule"].append(weekly_entry)
-        
-        # Sort each day's classes by start time
-        for day in schedule["daily_schedule"]:
+                    if meeting_time.get('building') != building or meeting_time.get('room') != room:
+                        continue
+                    room_found = True
+
+                    instructors = []
+                    instructor_list = section.get('instructors')
+                    if isinstance(instructor_list, list):
+                        for instructor in instructor_list:
+                            if isinstance(instructor, dict) and instructor.get('name'):
+                                instructors.append({"name": instructor['name']})
+                            elif isinstance(instructor, str) and instructor.strip():
+                                instructors.append({"name": instructor.strip()})
+
+                    instructor_text = str(section.get('instructorsText') or '').strip()
+                    if not instructors and instructor_text:
+                        instructors = [
+                            {"name": name.strip()}
+                            for name in instructor_text.split(',')
+                            if name.strip()
+                        ]
+                    if not instructors:
+                        instructors = [{"name": "TBA"}]
+
+                    start_time = (meeting_time.get('start_time') or {}).get('formatted') or 'TBA'
+                    end_time = (meeting_time.get('end_time') or {}).get('formatted') or 'TBA'
+                    class_entry = {
+                        "course_name": course.get('title', 'Unknown'),
+                        "course_code": course.get('courseString', 'Unknown'),
+                        "section": section.get('number', 'Unknown'),
+                        "instructors": instructors,
+                        "instructor_text": instructor_text or 'TBA',
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "meeting_mode": meeting_time.get('mode') or 'Unknown',
+                    }
+
+                    day = str(meeting_time.get('day') or '').strip()
+                    if day not in schedule["daily_schedule"]:
+                        has_unknown_day = True
+                        schedule["unscheduled_classes"].append(class_entry)
+                        continue
+
+                    schedule["daily_schedule"][day].append(class_entry)
+                    weekly_entry = class_entry.copy()
+                    weekly_entry["day"] = day
+                    schedule["weekly_schedule"].append(weekly_entry)
+
+                    start_minutes = self._time_to_minutes(start_time)
+                    end_minutes = self._time_to_minutes(end_time)
+                    if start_minutes >= 24 * 60 or end_minutes >= 24 * 60 or start_minutes >= end_minutes:
+                        incomplete_days.add(day)
+
+        if not room_found:
+            return None
+
+        for day in days_of_week:
             schedule["daily_schedule"][day].sort(
-                key=lambda x: self._time_to_minutes(x["start_time"])
+                key=lambda item: self._time_to_minutes(item["start_time"])
             )
-        
-        # Sort weekly schedule by day and then start time
-        day_order = {day: i for i, day in enumerate(days_of_week)}
+
+        day_order = {day: index for index, day in enumerate(days_of_week)}
         schedule["weekly_schedule"].sort(
-            key=lambda x: (
-                day_order.get(x["day"], 99),  # Sort by day order
-                self._time_to_minutes(x["start_time"]),
+            key=lambda item: (
+                day_order.get(item["day"], 99),
+                self._time_to_minutes(item["start_time"]),
             )
         )
-        
-        # Add availability status for each day
+
+        schedule["has_incomplete_schedule"] = has_unknown_day or bool(incomplete_days)
         for day in days_of_week:
             classes = schedule["daily_schedule"][day]
-            if not classes:
-                schedule["daily_schedule"][day] = {"classes": [], "status": "Available All Day"}
+            if has_unknown_day or day in incomplete_days:
+                status = "Schedule Incomplete"
+            elif classes:
+                status = "Classes Scheduled"
             else:
-                schedule["daily_schedule"][day] = {"classes": classes, "status": "Classes Scheduled"}
-        
+                status = "Available All Day"
+            schedule["daily_schedule"][day] = {"classes": classes, "status": status}
+
         return schedule

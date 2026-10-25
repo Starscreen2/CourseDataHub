@@ -16,6 +16,10 @@
     --glass-radius-pill: 999px;
 }
 
+.alert {
+    border-radius: var(--glass-radius-card);
+}
+
 body {
     background-color: var(--color-background, #f7fafc);
     background-image:

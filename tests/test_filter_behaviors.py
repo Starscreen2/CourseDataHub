@@ -268,6 +268,30 @@ class RoomFilterTests(unittest.TestCase):
 
         self.assertEqual([(room["building"], room["room"]) for room in rooms], [("ARC", "103")])
 
+    def test_room_code_and_number_search_does_not_leak_fuzzy_matches(self):
+        courses = [{
+            "courseString": "TEST 200",
+            "sections": [{"meeting_times": [{
+                "building": "ARC", "room": "103", "building_name": "Academic Resource Center",
+                "campus": "College Ave", "campus_name": "College Ave",
+            }, {
+                "building": "ARC", "room": "105", "building_name": "Academic Resource Center",
+                "campus": "College Ave", "campus_name": "College Ave",
+            }]}],
+        }]
+
+        class FakeCourseFetcher:
+            def get_courses(self, **_kwargs):
+                return courses
+
+        fetcher = RoomFetcher(FakeCourseFetcher())
+        self.assertEqual([], fetcher.search_rooms("ARC 999"))
+        self.assertEqual(["103"], [room["room"] for room in fetcher.search_rooms("ARC 103")])
+        self.assertEqual(
+            [],
+            fetcher.search_rooms("Academic Resource Center 103", campus_filters=["Busch"]),
+        )
+
     def test_room_details_without_a_room_shows_the_validation_message(self):
         response = app_module.app.test_client().get(
             "/room-details?year=2026&term=1&campus=NB"
@@ -276,7 +300,7 @@ class RoomFilterTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Building and room must be specified", response.data)
 
-    def test_availability_search_preserves_type_and_campus_filters(self):
+    def test_availability_search_preserves_campus_filter(self):
         courses = [
             {
                 "courseString": "TEST 200",
@@ -309,40 +333,115 @@ class RoomFilterTests(unittest.TestCase):
             day="Monday",
             start_time="8:00 AM",
             end_time="9:00 AM",
-            building_types=["lecture"],
             campus_filters=["Busch"],
         )
 
         self.assertEqual([(room["building"], room["room"]) for room in available], [("HILL", "114")])
+        self.assertEqual("unknown", available[0]["building_type"])
+
+    def test_unknown_day_meeting_is_not_reported_as_available(self):
+        courses = [{
+            "courseString": "TEST 300",
+            "title": "Roomed class with missing day",
+            "sections": [{
+                "number": "01",
+                "meeting_times": [{
+                    "building": "BL", "room": "148", "day": "",
+                    "start_time": {"formatted": "N/A"},
+                    "end_time": {"formatted": "N/A"},
+                }],
+            }],
+        }]
+
+        class FakeCourseFetcher:
+            def get_courses(self, **_kwargs):
+                return courses
+
+        fetcher = RoomFetcher(FakeCourseFetcher())
+        available = fetcher.find_available_rooms(
+            day="Monday", start_time="9:00 AM", end_time="10:00 AM"
+        )
+        schedule = fetcher.get_room_schedule("BL", "148")
+
+        self.assertEqual([], available)
+        self.assertTrue(schedule["has_incomplete_schedule"])
+        self.assertEqual("Schedule Incomplete", schedule["daily_schedule"]["Monday"]["status"])
+        self.assertEqual(1, len(schedule["unscheduled_classes"]))
+        self.assertEqual("TEST 300", schedule["unscheduled_classes"][0]["course_code"])
+
+    def test_known_day_with_missing_time_is_not_reported_as_available(self):
+        courses = [{
+            "courseString": "TEST 301",
+            "sections": [{
+                "number": "01",
+                "meeting_times": [{
+                    "building": "ARC", "room": "103", "day": "Tuesday",
+                    "start_time": {"formatted": "N/A"},
+                    "end_time": {"formatted": "N/A"},
+                }],
+            }],
+        }]
+
+        class FakeCourseFetcher:
+            def get_courses(self, **_kwargs):
+                return courses
+
+        fetcher = RoomFetcher(FakeCourseFetcher())
+        self.assertEqual([], fetcher.find_available_rooms(
+            day="Tuesday", start_time="9:00 AM", end_time="10:00 AM"
+        ))
+        self.assertEqual([("ARC", "103")], [
+            (room["building"], room["room"])
+            for room in fetcher.find_available_rooms(
+                day="Monday", start_time="9:00 AM", end_time="10:00 AM"
+            )
+        ])
+        schedule = fetcher.get_room_schedule("ARC", "103")
+        self.assertEqual("Schedule Incomplete", schedule["daily_schedule"]["Tuesday"]["status"])
+        self.assertEqual("Available All Day", schedule["daily_schedule"]["Monday"]["status"])
+
+    def test_nonexistent_room_schedule_is_not_returned_as_available(self):
+        class FakeCourseFetcher:
+            def get_courses(self, **_kwargs):
+                return []
+
+        self.assertIsNone(RoomFetcher(FakeCourseFetcher()).get_room_schedule("ARC", "999"))
 
     def test_room_api_reports_boolean_filter_flags_and_forwards_filters(self):
         client = app_module.app.test_client()
         with patch.object(app_module.room_fetcher, "search_rooms", return_value=[]) as search_rooms:
             response = client.get(
-                "/api/rooms?year=2026&term=1&campus=NB&filter_building_types=true&"
-                "type_lecture=true&filter_campuses=true&campus_busch=true"
+                "/api/rooms?year=2026&term=1&campus=NB&filter_campuses=true&campus_busch=true"
             )
 
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertIs(payload["filter_applied"], False)
-        self.assertIs(payload["building_types_filtered"], True)
+        self.assertIs(payload["building_types_filtered"], False)
         self.assertIs(payload["campus_filtered"], True)
         search_rooms.assert_called_once()
-        self.assertEqual(search_rooms.call_args.kwargs["building_types"], ["lecture"])
+        self.assertNotIn("building_types", search_rooms.call_args.kwargs)
         self.assertEqual(search_rooms.call_args.kwargs["campus_filters"], ["Busch"])
 
-    def test_room_api_preserves_legacy_filter_flags_without_activation_sentinels(self):
+    def test_room_api_rejects_unsupported_legacy_building_type_filters(self):
         client = app_module.app.test_client()
-        with patch.object(app_module.room_fetcher, "search_rooms", return_value=[]) as search_rooms:
+        with patch.object(app_module.room_fetcher, "search_rooms") as search_rooms:
             response = client.get(
                 "/api/rooms?year=2026&term=1&campus=NB&type_lecture=true&campus_busch=true"
             )
 
-        self.assertEqual(response.status_code, 200)
-        search_rooms.assert_called_once()
-        self.assertEqual(search_rooms.call_args.kwargs["building_types"], ["lecture"])
-        self.assertEqual(search_rooms.call_args.kwargs["campus_filters"], ["Busch"])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Room type filters are unavailable", response.get_json()["message"])
+        search_rooms.assert_not_called()
+
+    def test_room_schedule_api_returns_404_for_unknown_room(self):
+        with patch.object(app_module.room_fetcher, "get_room_schedule", return_value=None):
+            response = app_module.app.test_client().get(
+                "/api/room-schedule?year=2026&term=1&campus=NB&building=ARC&room=999"
+            )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.get_json()["status"], "error")
 
     def test_availability_api_rejects_incomplete_ranges(self):
         response = app_module.app.test_client().get(
@@ -365,7 +464,7 @@ class RoomFilterTests(unittest.TestCase):
         client = app_module.app.test_client()
         with patch.object(app_module.room_fetcher, "search_rooms") as search_rooms:
             response = client.get(
-                "/api/rooms?year=2026&term=1&campus=NB&filter_building_types=true&filter_campuses=true"
+                "/api/rooms?year=2026&term=1&campus=NB&filter_campuses=true"
             )
 
         self.assertEqual(response.status_code, 200)

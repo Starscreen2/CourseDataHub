@@ -351,10 +351,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // API Health Status Checker
     // ================================
     function updateStatus() {
+        const statusText = document.getElementById('statusText');
+        if (!statusText) return;
+
         fetch('/api/health')
             .then(response => response.json())
             .then(data => {
-                const statusText = document.getElementById('statusText');
                 const date = new Date(data.last_update);
                 const formattedDate = date.toLocaleString();
 
@@ -370,7 +372,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             })
             .catch(error => {
-                const statusText = document.getElementById('statusText');
                 statusText.innerHTML = `
                     <span class="status-error">●</span> Unable to connect to API
                 `;
@@ -378,6 +379,8 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 
-    updateStatus();
-    setInterval(updateStatus, 30000);
+    if (document.getElementById('statusText')) {
+        updateStatus();
+        setInterval(updateStatus, 30000);
+    }
 });

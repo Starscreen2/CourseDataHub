@@ -308,6 +308,29 @@ a.btn-outline-success:hover {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 5px 13px rgba(31, 41, 55, 0.09);
 }
 
+button.btn-outline-primary,
+a.btn-outline-primary {
+    border-color: rgba(157, 0, 40, 0.38);
+    color: var(--glass-accent);
+}
+
+button.btn-outline-primary:hover,
+a.btn-outline-primary:hover,
+button.btn-outline-primary:focus-visible,
+a.btn-outline-primary:focus-visible {
+    border-color: rgba(157, 0, 40, 0.58);
+    color: #76001e;
+}
+
+button.btn-link {
+    color: var(--glass-accent);
+}
+
+button.btn-link:hover,
+button.btn-link:focus-visible {
+    color: #76001e;
+}
+
 button.btn-close,
 .btn-close {
     min-width: 44px;

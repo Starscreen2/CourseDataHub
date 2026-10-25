@@ -237,6 +237,13 @@ class CourseFetcher:
                 is_specific_course_query = True
                 subject_part = dept_abbrevs.get(potential_dept, potential_dept)
                 number_part = potential_number
+        elif len(query_parts) == 1 and len(query_parts[0].split(":")) == 3:
+            # Full Rutgers codes include school, subject, and course number
+            # (for example, "01:198:111"). Treat them as specific queries so
+            # their shared numeric tokens do not pull in fuzzy lookalikes.
+            school_part, subject_part, number_part = query_parts[0].split(":")
+            if school_part.isdigit() and subject_part.isdigit() and number_part.isdigit():
+                is_specific_course_query = True
         elif ":" in query:
             # Format like "198:111"
             parts = query.split(":")
@@ -315,7 +322,9 @@ class CourseFetcher:
             if is_specific_course_query:
                 # Perfect match on subject and course number
                 if (subject_part and number_part and 
-                    subject == subject_part and course_number == number_part):
+                    subject == subject_part and course_number == number_part and
+                    (not (len(query_parts) == 1 and len(query_parts[0].split(":")) == 3)
+                     or course_string == query)):
                     exact_matches.append((100, course_string))
                     continue
                     
@@ -411,6 +420,8 @@ class CourseFetcher:
             time_int = int(military_time)
             hour = time_int // 100
             minute = time_int % 100
+            if hour > 23 or minute > 59:
+                return False
             total_minutes = hour * 60 + minute
             
             if time_range == 'morning':
@@ -428,7 +439,7 @@ class CourseFetcher:
 
     def _is_weekend_day(self, day_code: str) -> bool:
         """Check if day code represents a weekend day."""
-        return day_code in ['S', 'Su']
+        return str(day_code).strip().lower() in {'s', 'su'}
 
     def _matches_course_type(self, meeting_times: List[Dict], course_type: str) -> bool:
         """Check if course matches the specified course type based on meeting times."""
@@ -436,11 +447,14 @@ class CourseFetcher:
             return False
         
         for meeting_time in meeting_times:
-            mode = meeting_time.get('mode', '').lower()
+            mode = str(meeting_time.get('mode') or '').strip().lower()
             
             if course_type == 'traditional':
                 # Traditional/Face-to-Face: not online, not hybrid, not remote
-                if 'online' not in mode and 'hybrid' not in mode and 'remote' not in mode and 'asynchronous' not in mode:
+                if mode and mode not in {'n/a', 'unknown', 'tba'} and not any(
+                    excluded in mode
+                    for excluded in ('online', 'hybrid', 'remote', 'asynchronous')
+                ):
                     return True
             elif course_type == 'hybrid':
                 if 'hybrid' in mode:
@@ -456,9 +470,16 @@ class CourseFetcher:
         """Apply filters to a list of courses."""
         if not filters:
             return courses
-        
+
         filtered_courses = []
         subject_filter_applied = False
+        status_filters = {str(value).strip().lower() for value in filters.get('status', [])}
+        course_type_filters = {str(value).strip().lower() for value in filters.get('course_type', [])}
+        day_filters = [str(value).strip() for value in filters.get('days', []) if str(value).strip()]
+        time_filters = [str(value).strip().lower() for value in filters.get('time_range', []) if str(value).strip()]
+        campus_filters = [str(value).strip().lower() for value in filters.get('campus', []) if str(value).strip()]
+        has_meeting_filters = bool(day_filters or time_filters or campus_filters)
+        has_section_filters = bool(status_filters or course_type_filters or has_meeting_filters)
         
         for course in courses:
             # Filter by subject - normalize both values to strings and strip whitespace for comparison
@@ -500,149 +521,97 @@ class CourseFetcher:
                     continue
             
             # Get sections for this course
-            sections = course.get('sections', [])
+            sections = [
+                section for section in (course.get('sections') or [])
+                if isinstance(section, dict)
+            ]
             if not sections:
-                # If no sections, skip if we're filtering by status or meeting times
-                if 'status' in filters or 'days' in filters or 'time_range' in filters or 'course_type' in filters or 'campus' in filters:
+                if has_section_filters:
                     continue
                 filtered_courses.append(course)
                 continue
-            
-            # Filter by section status - course matches if ANY section matches
-            if 'status' in filters:
-                status_filters = filters['status']
-                has_matching_status = False
-                for section in sections:
-                    section_status = section.get('openStatusText', '').lower()
-                    if 'open' in status_filters and 'open' in section_status:
-                        has_matching_status = True
-                        break
-                    if 'closed' in status_filters and 'closed' in section_status:
-                        has_matching_status = True
-                        break
-                if not has_matching_status:
-                    continue
-            
-            # Filter by course type, days, time, and campus - need to check meeting times
-            # Special handling: if course_type filter is applied, filter sections to only include matching ones
+
             filtered_sections = []
-            course_type_filter_applied = 'course_type' in filters
-            
-            if 'course_type' in filters or 'days' in filters or 'time_range' in filters or 'campus' in filters:
-                course_type_match = 'course_type' not in filters
-                days_match = 'days' not in filters
-                time_match = 'time_range' not in filters
-                campus_match = 'campus' not in filters
-                
-                # Check all sections' meeting times
-                for section in sections:
-                    meeting_times_raw = section.get('meetingTimes', [])
-                    if not meeting_times_raw:
-                        # If no meeting times, only include section if course_type filter is not applied
-                        if not course_type_filter_applied:
-                            filtered_sections.append(section)
-                        continue
-                    
-                    # Format meeting times
-                    formatted_meeting_times = [self.format_meeting_time(mt) for mt in meeting_times_raw]
-                    
-                    # Check course type - if filter is applied, only include sections that match
-                    section_matches_course_type = False
-                    if course_type_filter_applied:
-                        for course_type in filters['course_type']:
-                            if self._matches_course_type(formatted_meeting_times, course_type):
-                                section_matches_course_type = True
-                                course_type_match = True
-                                break
-                    else:
-                        # No course type filter, section matches by default
-                        section_matches_course_type = True
-                        course_type_match = True
-                    
-                    # Check days
-                    section_days_match = 'days' not in filters
-                    if 'days' in filters and not days_match:
-                        for day_filter in filters['days']:
-                            if day_filter == 'weekend':
-                                # Check if any meeting time is on weekend
-                                for mt_raw, mt_formatted in zip(meeting_times_raw, formatted_meeting_times):
-                                    day_code_raw = mt_raw.get('meetingDay', '')
-                                    day_name = mt_formatted.get('day', '')
-                                    if self._is_weekend_day(day_code_raw) or day_name in ['Saturday', 'Sunday']:
-                                        section_days_match = True
-                                        days_match = True
-                                        break
-                            else:
-                                # Map day code to full name
-                                day_name_expected = self.WEEKDAY_MAP.get(day_filter, day_filter)
-                                for mt_raw, mt_formatted in zip(meeting_times_raw, formatted_meeting_times):
-                                    day_code_raw = mt_raw.get('meetingDay', '')
-                                    day_name = mt_formatted.get('day', '')
-                                    if day_code_raw == day_filter or day_name == day_name_expected or day_name == day_filter:
-                                        section_days_match = True
-                                        days_match = True
-                                        break
-                            if section_days_match:
-                                break
-                    
-                    # Check time range
-                    section_time_match = 'time_range' not in filters
-                    if 'time_range' in filters and not time_match:
-                        for time_range in filters['time_range']:
-                            for mt in formatted_meeting_times:
-                                start_time = mt.get('start_time', {}).get('military', '')
-                                if self._is_time_in_range(start_time, time_range):
-                                    section_time_match = True
-                                    time_match = True
-                                    break
-                            if section_time_match:
-                                break
-                    
-                    # Check campus
-                    section_campus_match = 'campus' not in filters
-                    if 'campus' in filters and not campus_match:
-                        for campus_filter in filters['campus']:
-                            for mt_raw, mt_formatted in zip(meeting_times_raw, formatted_meeting_times):
-                                mt_campus_formatted = mt_formatted.get('campus', '')
-                                mt_campus_id = mt_raw.get('campusLocation', '')
-                                # Check formatted campus name
-                                if campus_filter.lower() in mt_campus_formatted.lower() or mt_campus_formatted.lower() in campus_filter.lower():
-                                    section_campus_match = True
-                                    campus_match = True
-                                    break
-                                # Also check if campus ID maps to the filter
-                                campus_id_name = self.format_campus(mt_campus_id)
-                                if campus_filter.lower() in campus_id_name.lower():
-                                    section_campus_match = True
-                                    campus_match = True
-                                    break
-                            if section_campus_match:
-                                break
-                    
-                    # If course type filter is applied, only add sections that match the course type
-                    # Other filters (days, time, campus) determine if course should be included,
-                    # but don't filter individual sections
-                    if course_type_filter_applied:
-                        if section_matches_course_type:
-                            filtered_sections.append(section)
-                    else:
-                        # No course type filter, include all sections
-                        filtered_sections.append(section)
-                    
-                    if course_type_match and days_match and time_match and campus_match:
+            for section in sections:
+                section_status = str(section.get('openStatusText') or section.get('status') or '').strip().lower()
+                if status_filters and not any(status in section_status for status in status_filters):
+                    continue
+
+                meeting_times_raw = [
+                    meeting for meeting in (section.get('meetingTimes') or [])
+                    if isinstance(meeting, dict)
+                ]
+                formatted_meeting_times = [self.format_meeting_time(mt) for mt in meeting_times_raw]
+
+                if course_type_filters and not any(
+                    self._matches_course_type(formatted_meeting_times, course_type)
+                    for course_type in course_type_filters
+                ):
+                    continue
+
+                if has_meeting_filters:
+                    # Each selected category is an OR group, while day, time,
+                    # and campus are ANDed against the same meeting record.
+                    matching_meeting_found = False
+                    for raw_meeting, meeting in zip(meeting_times_raw, formatted_meeting_times):
+                        day_name = str(meeting.get('day', '')).strip()
+                        day_code = str(raw_meeting.get('meetingDay', '')).strip()
+                        day_name_normalized = day_name.lower()
+                        day_code_normalized = day_code.lower()
+
+                        def matches_day(day_filter: str) -> bool:
+                            normalized_day = day_filter.lower()
+                            if normalized_day == 'weekend':
+                                return (
+                                    self._is_weekend_day(day_code)
+                                    or day_name_normalized in ('saturday', 'sunday')
+                                )
+
+                            expected_day = self.WEEKDAY_MAP.get(
+                                day_filter,
+                                self.WEEKDAY_MAP.get(day_filter.capitalize(), day_filter),
+                            )
+                            return normalized_day in (
+                                day_code_normalized,
+                                day_name_normalized,
+                                str(expected_day).strip().lower(),
+                            )
+
+                        if day_filters and not any(
+                            matches_day(day_filter)
+                            for day_filter in day_filters
+                        ):
+                            continue
+
+                        start_time = meeting.get('start_time', {}).get('military', '')
+                        if time_filters and not any(
+                            self._is_time_in_range(start_time, time_range)
+                            for time_range in time_filters
+                        ):
+                            continue
+
+                        if campus_filters:
+                            formatted_campus = str(meeting.get('campus', '')).strip().lower()
+                            campus_id_name = str(self.format_campus(raw_meeting.get('campusLocation', ''))).strip().lower()
+                            if not any(
+                                campus_filter in candidate or candidate in campus_filter
+                                for campus_filter in campus_filters
+                                for candidate in (formatted_campus, campus_id_name)
+                                if candidate
+                            ):
+                                continue
+
+                        matching_meeting_found = True
                         break
-                
-                # If any filter didn't match, skip this course
-                if not (course_type_match and days_match and time_match and campus_match):
-                    continue
-                
-                # If course type filter is applied, only include course if it has matching sections
-                if course_type_filter_applied and not filtered_sections:
-                    continue
-            else:
-                # No filters applied, include all sections
-                filtered_sections = sections.copy()
-            
+
+                    if not matching_meeting_found:
+                        continue
+
+                filtered_sections.append(section)
+
+            if has_section_filters and not filtered_sections:
+                continue
+
             # Create a copy of the course with filtered sections
             course_copy = course.copy()
             course_copy['sections'] = filtered_sections

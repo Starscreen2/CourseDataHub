@@ -94,7 +94,7 @@
     background: #1f2937;
     color: white;
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: var(--glass-radius-card);
     font-size: 14px;
     white-space: nowrap;
     opacity: 0;
@@ -147,7 +147,7 @@
 .planner-content {
     position: relative;
     background: #f8f9fa;
-    border-radius: 12px;
+    border-radius: var(--glass-radius-shell);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
     width: 100%;
     max-width: 1200px;
@@ -178,6 +178,14 @@
     background: linear-gradient(135deg, #cc0000 0%, #e60000 100%);
     border-bottom: 1px solid #b30000;
     color: white;
+}
+
+.planner-title {
+    min-width: 0;
+}
+
+.planner-actions {
+    flex-shrink: 0;
 }
 
 .planner-title h1 {
@@ -226,7 +234,7 @@
 .term-selection .form-select {
     padding: 8px 12px;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: var(--glass-radius-field);
     font-size: 14px;
     background: white;
 }
@@ -247,7 +255,7 @@
 .view-toggle {
     display: flex;
     background: white;
-    border-radius: 6px;
+    border-radius: var(--glass-radius-pill);
     padding: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -259,7 +267,7 @@
     border: none;
     background: transparent;
     color: #6b7280;
-    border-radius: 4px;
+    border-radius: var(--glass-radius-pill);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -344,7 +352,7 @@
     flex-direction: column;
     background: white;
     margin: 0 16px 16px 16px;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-panel);
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
@@ -437,7 +445,7 @@
 .course-block {
     background: #cc0000;
     color: white;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-control);
     padding: 8px 12px;
     font-size: 12px;
     font-weight: 500;
@@ -455,6 +463,12 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+.course-block.has-conflict {
+    border: 2px dashed #fff;
+    outline: 2px solid #b42318;
+    outline-offset: -2px;
+}
+
 /* Ghost preview block for section hover */
 .ghost-course-block {
     position: absolute;
@@ -464,7 +478,7 @@
     border: 2px dashed rgba(204, 0, 0, 0.7);
     background: rgba(204, 0, 0, 0.12);
     color: #cc0000;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-control);
     padding: 6px 10px;
     font-size: 12px;
     box-sizing: border-box;
@@ -503,7 +517,7 @@
 .course-popup {
     position: fixed;
     background: white;
-    border-radius: 12px;
+    border-radius: var(--glass-radius-card);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
     z-index: 10000;
     max-width: 360px;
@@ -613,7 +627,7 @@
 .popup-meeting-item {
     padding: 12px;
     background: #f8f9fa;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-card);
     border-left: 3px solid #cc0000;
 }
 
@@ -799,7 +813,7 @@
 .section-option {
     background: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: var(--glass-radius-card);
     padding: 12px 14px;
     cursor: pointer;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -841,7 +855,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 2px 6px;
-    border-radius: 999px;
+    border-radius: var(--glass-radius-pill);
     background: #e5e7eb;
     color: #4b5563;
 }
@@ -957,7 +971,7 @@
     background: #fef2f2;
     padding: 4px 8px;
     font-size: 12px;
-    border-radius: 4px;
+    border-radius: var(--glass-radius-pill);
     transition: all 0.2s ease;
 }
 
@@ -1059,7 +1073,7 @@
 .stat-card {
     background: #f9fafb;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-card);
     padding: 16px;
     display: flex;
     align-items: center;
@@ -1069,7 +1083,7 @@
 .stat-icon {
     width: 40px;
     height: 40px;
-    border-radius: 8px;
+    border-radius: var(--glass-radius-control);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1112,7 +1126,7 @@
     background: white !important;
     border: 1px solid #e5e7eb !important;
     border-left: 4px solid #cc0000 !important;
-    border-radius: 6px !important;
+    border-radius: var(--glass-radius-card) !important;
     padding: 16px !important;
     margin-bottom: 12px !important;
     transition: all 0.2s ease;
@@ -1167,7 +1181,7 @@
     font-size: 10px;
     padding: 3px 6px;
     font-weight: 500;
-    border-radius: 4px;
+    border-radius: var(--glass-radius-pill);
 }
 
 .meeting-times {
@@ -1236,22 +1250,34 @@
     margin-top: 16px;
     padding: 8px 16px;
     font-size: 14px;
-    border-radius: 6px;
+    border-radius: var(--glass-radius-pill);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
     .planner-body {
+        position: relative;
         flex-direction: column;
     }
     
     .detail-panel,
     .detail-panel.is-open {
+        position: absolute;
+        inset: 0;
         width: 100%;
+        height: 100%;
         max-width: none;
+        max-height: 100%;
         border-left: none;
         border-top: 1px solid #e5e7eb;
         box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.12);
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        z-index: 30;
+    }
+
+    .detail-panel.is-open {
+        transform: translateX(0);
     }
     
     .floating-planner {
@@ -1271,16 +1297,25 @@
     
     .planner-content {
         margin: 0;
-        border-radius: 0;
+        border-radius: var(--glass-radius-shell-compact);
         max-height: 100vh;
     }
     
     .planner-header {
-        padding: 20px;
+        gap: 12px;
+        padding: 16px;
     }
     
     .planner-header h1 {
-        font-size: 24px;
+        font-size: 20px;
+    }
+
+    .planner-title p {
+        font-size: 12px;
+    }
+
+    .planner-actions {
+        gap: 8px;
     }
     
     .planner-controls {
@@ -1326,6 +1361,23 @@
         max-height: 50vh;
         min-height: 400px;
     }
+
+    /* Keep weekday columns wide enough to read on phones; scroll the week
+       inside the calendar frame so it never forces page-level overflow. */
+    .weekly-calendar {
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .calendar-header,
+    .calendar-grid,
+    .calendar-row {
+        width: 860px;
+        min-width: 860px;
+    }
     
     .calendar-header {
         grid-template-columns: 60px repeat(5, 1fr);
@@ -1354,6 +1406,36 @@
         font-size: 10px;
         padding: 4px 6px;
     }
+
+    .course-block .course-title {
+        font-size: 10px;
+    }
+
+    .course-block .course-time {
+        font-size: 9px;
+    }
+
+    .empty-state {
+        height: auto;
+        min-height: 220px;
+        padding: 24px 20px;
+    }
+
+    .empty-icon {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+    }
+
+    .empty-icon i {
+        font-size: 32px;
+    }
+
+    .empty-state p {
+        margin-bottom: 0;
+        font-size: 14px;
+        line-height: 1.4;
+    }
     
     .planner-footer {
         padding: 12px 20px;
@@ -1364,6 +1446,25 @@
     .planner-footer .btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .planner-header .planner-actions .btn-primary {
+        width: 44px;
+        min-width: 44px;
+        padding: 0;
+        font-size: 0;
+        justify-content: center;
+    }
+
+    .planner-header .planner-actions .btn-primary i {
+        margin: 0 !important;
+        font-size: 16px;
+    }
+
+    .planner-header .planner-actions .btn-close {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
     }
     
     .floating-tooltip {

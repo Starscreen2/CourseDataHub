@@ -13,12 +13,42 @@ let detailPanelSubtitle = null;
 let detailPanelBackButton = null;
 let detailPanelMode = 'details';
 
+function escapePlannerHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+}
+
 // Load scheduled courses from localStorage on page load
 document.addEventListener('DOMContentLoaded', function() {
     const stored = localStorage.getItem('scheduledCourses');
     if (stored) {
         try {
-            scheduledCourses = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            scheduledCourses = Array.isArray(parsed)
+                ? parsed
+                    .filter(course => course && typeof course === 'object' && !Array.isArray(course))
+                    .map(course => {
+                        const section = course.selectedSection;
+                        return {
+                            ...course,
+                            campusLocations: Array.isArray(course.campusLocations) ? course.campusLocations : [],
+                            selectedSection: section && typeof section === 'object' && !Array.isArray(section)
+                                ? {
+                                    ...section,
+                                    instructors: Array.isArray(section.instructors)
+                                        ? section.instructors.map(instructor => typeof instructor === 'string'
+                                            ? instructor
+                                            : String(instructor?.name || 'TBA'))
+                                        : [],
+                                    meetingTimes: Array.isArray(section.meetingTimes)
+                                        ? section.meetingTimes.filter(meeting => meeting && typeof meeting === 'object' && !Array.isArray(meeting))
+                                        : [],
+                                }
+                                : null,
+                        };
+                    })
+                : [];
         } catch (e) {
             console.error('Error loading scheduled courses:', e);
             scheduledCourses = [];
@@ -71,6 +101,15 @@ function closePlanner() {
     }
     // Hide any open detail panels when closing planner
     closeDetailPanel();
+}
+
+function searchClassesFromPlanner() {
+    const query = new URLSearchParams(window.location.search);
+    const year = document.getElementById('year')?.value || query.get('year') || '2026';
+    const term = document.getElementById('term')?.value || query.get('term') || '1';
+    const campus = document.getElementById('campus')?.value || query.get('campus') || 'NB';
+    const params = new URLSearchParams({ year, term, campus });
+    window.location.assign(`/search?${params.toString()}`);
 }
 
 function openCoursePlanner() {
@@ -169,9 +208,11 @@ function generateCalendarGrid() {
         calendarGrid.appendChild(row);
     });
 
-    // Create day overlays for minute-precision course placement
-    // Calculate overlay positions based on grid layout (80px time column + 5 equal day columns)
-    const timeColumnWidth = 80;
+    // Create day overlays for minute-precision course placement. The time
+    // column is narrower on mobile, so measure the rendered grid instead of
+    // assuming the desktop width and shifting every event out of its day.
+    const firstRow = calendarGrid.querySelector('.calendar-row');
+    const timeColumnWidth = firstRow?.querySelector('.time-label')?.getBoundingClientRect().width || 80;
     const dayOverlayWidth = `calc((100% - ${timeColumnWidth}px) / 5)`;
     
     for (let day = 0; day < 5; day++) {
@@ -187,9 +228,119 @@ function generateCalendarGrid() {
     addCoursesToCalendar();
 }
 
+function parsePlannerTimeToMinutes(timeStr) {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const match = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i);
+    if (!match) return null;
+
+    const hour = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    if (hour < 1 || hour > 12 || minutes < 0 || minutes > 59) return null;
+
+    const period = match[3].toUpperCase();
+    return ((hour % 12) + (period === 'PM' ? 12 : 0)) * 60 + minutes;
+}
+
+function getScheduleConflicts() {
+    const dayIndexes = new Map([
+        ['monday', 0], ['mon', 0], ['m', 0],
+        ['tuesday', 1], ['tue', 1], ['tu', 1], ['t', 1],
+        ['wednesday', 2], ['wed', 2], ['w', 2],
+        ['thursday', 3], ['thu', 3], ['th', 3], ['h', 3],
+        ['friday', 4], ['fri', 4], ['f', 4]
+    ]);
+    const meetings = [];
+
+    scheduledCourses.forEach((course, courseIndex) => {
+        const sectionMeetings = course.selectedSection?.meetingTimes;
+        if (!Array.isArray(sectionMeetings)) return;
+
+        sectionMeetings.forEach((meeting, meetingIndex) => {
+            if (!meeting || typeof meeting !== 'object' || Array.isArray(meeting)) return;
+            const day = String(meeting.day || '').trim();
+            const dayIndex = dayIndexes.get(day.toLowerCase());
+            const startText = meeting.startTime?.formatted;
+            const start = parsePlannerTimeToMinutes(startText);
+            const endText = meeting.endTime?.formatted;
+            const parsedEnd = parsePlannerTimeToMinutes(endText);
+            const end = endText ? parsedEnd : (start === null ? null : start + 60);
+            if (dayIndex === undefined || start === null || end === null || end <= start) return;
+
+            meetings.push({
+                key: `${courseIndex}:${meetingIndex}`,
+                course: course.courseString || 'Course',
+                day: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][dayIndex],
+                dayIndex,
+                start,
+                end,
+                startText,
+                endText: endText || 'TBA'
+            });
+        });
+    });
+
+    const conflicts = [];
+    const conflictingMeetings = new Set();
+    for (let firstIndex = 0; firstIndex < meetings.length; firstIndex += 1) {
+        const first = meetings[firstIndex];
+        for (let secondIndex = firstIndex + 1; secondIndex < meetings.length; secondIndex += 1) {
+            const second = meetings[secondIndex];
+            if (first.dayIndex !== second.dayIndex || first.start >= second.end || second.start >= first.end) continue;
+
+            conflictingMeetings.add(first.key);
+            conflictingMeetings.add(second.key);
+            conflicts.push({
+                course: second.course,
+                day: second.day,
+                time: `${second.startText} - ${second.endText}`,
+                conflictsWith: first.course
+            });
+        }
+    }
+
+    const layoutByMeeting = new Map();
+    for (let dayIndex = 0; dayIndex < 5; dayIndex += 1) {
+        const dayMeetings = meetings
+            .filter(meeting => meeting.dayIndex === dayIndex)
+            .sort((a, b) => a.start - b.start || b.end - a.end);
+        let cluster = [];
+        let clusterEnd = -1;
+
+        const layoutCluster = () => {
+            const laneEnds = [];
+            cluster.forEach(meeting => {
+                let laneIndex = laneEnds.findIndex(laneEnd => laneEnd <= meeting.start);
+                if (laneIndex === -1) {
+                    laneIndex = laneEnds.length;
+                    laneEnds.push(meeting.end);
+                } else {
+                    laneEnds[laneIndex] = meeting.end;
+                }
+                meeting.laneIndex = laneIndex;
+            });
+
+            cluster.forEach(meeting => {
+                layoutByMeeting.set(meeting.key, {
+                    laneIndex: meeting.laneIndex,
+                    laneCount: laneEnds.length,
+                });
+            });
+            cluster = [];
+            clusterEnd = -1;
+        };
+
+        dayMeetings.forEach(meeting => {
+            if (cluster.length && meeting.start >= clusterEnd) layoutCluster();
+            cluster.push(meeting);
+            clusterEnd = Math.max(clusterEnd, meeting.end);
+        });
+        if (cluster.length) layoutCluster();
+    }
+
+    return { conflicts, conflictingMeetings, layoutByMeeting };
+}
+
 function addCoursesToCalendar() {
-    console.log('Adding courses to calendar:', scheduledCourses);
-    
     // Measure actual row height from the DOM to ensure accuracy
     const firstRow = document.querySelector('.calendar-row');
     if (!firstRow) {
@@ -198,8 +349,6 @@ function addCoursesToCalendar() {
     }
     
     const actualRowHeight = firstRow.offsetHeight || 45; // Fallback to 45px if measurement fails
-    console.log('Measured row height:', actualRowHeight, 'px');
-    
     // Constants for minute-precision positioning
     const GRID_START_HOUR = 7; // Calendar starts at 7 AM
     const ROW_HEIGHT_PX = actualRowHeight; // Use actual measured height
@@ -209,7 +358,7 @@ function addCoursesToCalendar() {
     function getCampusColor(campusName) {
         if (!campusName) return '#cc0000'; // Default red if no campus
         
-        const campus = campusName.trim().toLowerCase();
+        const campus = String(campusName).trim().toLowerCase();
         
         // Handle various campus name formats
         if (campus.includes('college ave') || campus.includes('college avenue')) {
@@ -228,144 +377,55 @@ function addCoursesToCalendar() {
         return '#cc0000';
     }
     
-    // Helper function to parse time string to minutes from midnight
-    function parseTimeToMinutes(timeStr) {
-        if (!timeStr || timeStr === 'N/A') return null;
-        
-        // Parse formats like "9:15 AM", "10:30 PM", "12:00 PM"
-        const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (!match) return null;
-        
-        let hour = parseInt(match[1], 10);
-        const minutes = parseInt(match[2], 10);
-        const period = match[3].toUpperCase();
-        
-        // Convert to 24-hour format
-        if (period === 'PM' && hour !== 12) {
-            hour += 12;
-        } else if (period === 'AM' && hour === 12) {
-            hour = 0;
-        }
-        
-        // Return total minutes from midnight
-        return hour * 60 + minutes;
-    }
-    
-    // Track intervals per day for overlap detection
-    const dayIntervals = {
-        0: [], // Monday
-        1: [], // Tuesday
-        2: [], // Wednesday
-        3: [], // Thursday
-        4: []  // Friday
-    };
-    
-    const conflicts = [];
-    const conflictingMeetings = new Set(); // Track which meetings conflict
-    
-    // First pass: collect all meeting times and detect conflicts
-    scheduledCourses.forEach((course, courseIndex) => {
-        if (course.selectedSection && course.selectedSection.meetingTimes) {
-            course.selectedSection.meetingTimes.forEach(meeting => {
-                const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
-                const dayIndex = dayMap[meeting.day];
-                
-                if (dayIndex !== undefined && meeting.startTime && meeting.startTime.formatted) {
-                    const startMinutes = parseTimeToMinutes(meeting.startTime.formatted);
-                    const endMinutes = meeting.endTime && meeting.endTime.formatted 
-                        ? parseTimeToMinutes(meeting.endTime.formatted)
-                        : startMinutes + 60; // Default 1 hour if no end time
-                    
-                    if (startMinutes === null || endMinutes === null) {
-                        console.log('Could not parse time:', meeting.startTime.formatted, meeting.endTime?.formatted);
-                        return;
-                    }
-                    
-                    // Check for overlap with existing intervals
-                    const intervals = dayIntervals[dayIndex];
-                    const conflictingInterval = intervals.find(({ start, end, courseInfo }) => {
-                        // Check if intervals overlap: !(end <= startMinutes || start >= endMinutes)
-                        return !(end <= startMinutes || start >= endMinutes);
-                    });
-                    
-                    if (conflictingInterval) {
-                        // Mark both meetings as conflicting
-                        const conflictKey = `${dayIndex}-${startMinutes}-${endMinutes}`;
-                        const existingConflictKey = `${dayIndex}-${conflictingInterval.start}-${conflictingInterval.end}`;
-                        conflictingMeetings.add(conflictKey);
-                        conflictingMeetings.add(existingConflictKey);
-                        
-                        conflicts.push({
-                            course: course.courseString,
-                            day: meeting.day,
-                            time: `${meeting.startTime.formatted} - ${meeting.endTime?.formatted || 'TBA'}`,
-                            conflictsWith: conflictingInterval.courseInfo
-                        });
-                        return; // Don't add to intervals, skip rendering
-                    }
-                    
-                    // Add to intervals
-                    intervals.push({
-                        start: startMinutes,
-                        end: endMinutes,
-                        courseInfo: course.courseString
-                    });
-                }
-            });
-        }
-    });
-    
-    // Show error notification if conflicts found
-    if (conflicts.length > 0) {
-        const conflictMessages = conflicts.map(c => 
-            `${c.course} (${c.day} ${c.time}) conflicts with ${c.conflictsWith}`
-        ).join('; ');
-        showNotification(`Schedule conflicts detected: ${conflictMessages}`, 'warning');
-    }
+    const { conflictingMeetings, layoutByMeeting } = getScheduleConflicts();
     
     // Second pass: render course blocks with minute-precision positioning
     scheduledCourses.forEach((course, courseIndex) => {
-        if (course.selectedSection && course.selectedSection.meetingTimes) {
-            course.selectedSection.meetingTimes.forEach(meeting => {
+        if (course.selectedSection && Array.isArray(course.selectedSection.meetingTimes)) {
+            course.selectedSection.meetingTimes.forEach((meeting, meetingIndex) => {
                 const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
                 const dayIndex = dayMap[meeting.day];
                 
                 if (dayIndex !== undefined && meeting.startTime && meeting.startTime.formatted) {
-                    const startMinutes = parseTimeToMinutes(meeting.startTime.formatted);
-                    const endMinutes = meeting.endTime && meeting.endTime.formatted 
-                        ? parseTimeToMinutes(meeting.endTime.formatted)
-                        : startMinutes + 60;
+                    const startMinutes = parsePlannerTimeToMinutes(meeting.startTime.formatted);
+                    const endText = meeting.endTime?.formatted;
+                    const parsedEndMinutes = parsePlannerTimeToMinutes(endText);
+                    const endMinutes = endText
+                        ? parsedEndMinutes
+                        : (startMinutes === null ? null : startMinutes + 60);
                     
-                    if (startMinutes === null || endMinutes === null) {
+                    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
                         return;
                     }
                     
-                    // Check if this meeting conflicts (skip rendering)
-                    const conflictKey = `${dayIndex}-${startMinutes}-${endMinutes}`;
-                    if (conflictingMeetings.has(conflictKey)) {
-                        return; // Skip rendering conflicting courses
-                    }
+                    // Keep conflicting meetings visible side by side so users
+                    // can compare both schedules.
+                    const conflictKey = `${courseIndex}:${meetingIndex}`;
+                    const conflictLayout = layoutByMeeting.get(conflictKey) || { laneIndex: 0, laneCount: 1 };
+                    const hasConflict = conflictingMeetings.has(conflictKey);
                     
                     // Calculate position relative to grid start (7 AM)
                     const startMinutesFromGridStart = startMinutes - (GRID_START_HOUR * 60);
-                    const durationMinutes = endMinutes - startMinutes;
-                    
                     // Only render if within calendar bounds (7 AM to midnight)
-                    if (startMinutesFromGridStart < 0 || startMinutesFromGridStart > (24 - GRID_START_HOUR) * 60) {
+                    if (startMinutesFromGridStart < 0 || startMinutesFromGridStart >= (24 - GRID_START_HOUR) * 60) {
                         console.log('Meeting time outside calendar bounds:', meeting.startTime.formatted);
                         return;
                     }
+                    const visibleEndMinutes = Math.min(endMinutes, 24 * 60);
+                    const visibleDurationMinutes = visibleEndMinutes - startMinutes;
+                    if (visibleDurationMinutes <= 0) return;
                     
                     // Find the day overlay
                     const dayOverlay = document.querySelector(`.day-overlay[data-day="${dayIndex}"]`);
                     
                     if (dayOverlay) {
                         const courseBlock = document.createElement('div');
-                        courseBlock.className = 'course-block';
+                        courseBlock.className = `course-block${hasConflict ? ' has-conflict' : ''}`;
                         
                         // Calculate top position and height in pixels
                         const top = startMinutesFromGridStart * PX_PER_MIN;
-                        const height = Math.max(durationMinutes * PX_PER_MIN, 18); // Minimum 18px height
+                        const maxVisibleHeight = ((24 - GRID_START_HOUR) * 60 - startMinutesFromGridStart) * PX_PER_MIN;
+                        const height = Math.min(Math.max(visibleDurationMinutes * PX_PER_MIN, 18), maxVisibleHeight);
                         
                         // Get campus color based on meeting campus
                         const campusColor = getCampusColor(meeting.campus);
@@ -373,15 +433,26 @@ function addCoursesToCalendar() {
                         courseBlock.style.position = 'absolute';
                         courseBlock.style.top = `${top}px`;
                         courseBlock.style.height = `${height}px`;
-                        courseBlock.style.left = '2px';
-                        courseBlock.style.right = '2px';
+                        const laneWidthPercent = 100 / conflictLayout.laneCount;
+                        courseBlock.style.left = conflictLayout.laneCount > 1
+                            ? `calc(${laneWidthPercent * conflictLayout.laneIndex}% + 2px)`
+                            : '2px';
+                        courseBlock.style.right = conflictLayout.laneCount > 1
+                            ? `calc(${laneWidthPercent * (conflictLayout.laneCount - conflictLayout.laneIndex - 1)}% + 2px)`
+                            : '2px';
                         courseBlock.style.width = 'auto';
                         courseBlock.style.backgroundColor = campusColor;
+                        if (hasConflict) {
+                            courseBlock.setAttribute(
+                                'aria-label',
+                                `${course.courseString || 'Course'}, ${meeting.day}, ${meeting.startTime.formatted} to ${meeting.endTime?.formatted || 'TBA'}, schedule conflict`
+                            );
+                        }
                         
                         courseBlock.innerHTML = `
-                            <div class="course-title">${course.courseString}</div>
-                            <div class="course-time">${meeting.startTime.formatted} - ${meeting.endTime?.formatted || 'TBA'}</div>
-                            <div class="course-location">${meeting.building || 'TBA'}</div>
+                            <div class="course-title">${escapePlannerHTML(course.courseString)}</div>
+                            <div class="course-time">${escapePlannerHTML(meeting.startTime.formatted)} - ${escapePlannerHTML(meeting.endTime?.formatted || 'TBA')}</div>
+                            <div class="course-location">${escapePlannerHTML(meeting.building || 'TBA')}</div>
                         `;
                         
                         // Store course and meeting data for popup
@@ -393,9 +464,6 @@ function addCoursesToCalendar() {
                         setupCourseBlockHover(courseBlock, courseIndex);
                         
                         dayOverlay.appendChild(courseBlock);
-                        console.log(`Added course block: ${course.courseString} at ${top}px, height ${height}px, campus: ${meeting.campus}, color: ${campusColor}`);
-                    } else {
-                        console.log('Day overlay not found for day:', dayIndex);
                     }
                 }
             });
@@ -431,7 +499,7 @@ function createCoursePopup(course, meeting, options = {}) {
     // Get campus color for accent
     function getCampusColor(campusName) {
         if (!campusName) return '#cc0000';
-        const campus = campusName.trim().toLowerCase();
+        const campus = String(campusName).trim().toLowerCase();
         if (campus.includes('college ave') || campus.includes('college avenue')) {
             return '#dc3545';
         } else if (campus.includes('busch')) {
@@ -446,14 +514,14 @@ function createCoursePopup(course, meeting, options = {}) {
         return '#cc0000';
     }
     
-    const fallbackMeeting = meeting || (course.selectedSection?.meetingTimes?.[0]) || {};
+    const fallbackMeeting = meeting || (Array.isArray(course.selectedSection?.meetingTimes) ? course.selectedSection.meetingTimes[0] : null) || {};
     const campusColor = getCampusColor(fallbackMeeting.campus);
     
     // Build popup content
     let content = `
         <div class="popup-header" style="border-top-color: ${campusColor};">
-            <div class="popup-course-code">${course.courseString}</div>
-            <div class="popup-course-title">${course.title || 'N/A'}</div>
+            <div class="popup-course-code">${escapePlannerHTML(course.courseString)}</div>
+            <div class="popup-course-title">${escapePlannerHTML(course.title || 'N/A')}</div>
         </div>
         <div class="popup-body">
     `;
@@ -461,7 +529,8 @@ function createCoursePopup(course, meeting, options = {}) {
     // Section information
     if (course.selectedSection) {
         const section = course.selectedSection;
-        const statusClass = section.status.toLowerCase() === 'open' ? 'status-open' : 'status-closed';
+        const sectionStatus = String(section.status || 'N/A');
+        const statusClass = sectionStatus.toLowerCase() === 'open' ? 'status-open' : 'status-closed';
         
         content += `
             <div class="popup-section">
@@ -469,15 +538,15 @@ function createCoursePopup(course, meeting, options = {}) {
                 <div class="popup-details-grid">
                     <div class="popup-detail-item">
                         <span class="popup-label">Section:</span>
-                        <span class="popup-value"><button class="badge bg-primary section-switcher-btn" type="button" data-popup="true">Section ${section.number || 'N/A'}</button></span>
+                        <span class="popup-value"><button class="badge bg-primary section-switcher-btn" type="button" data-popup="true">Section ${escapePlannerHTML(section.number || 'N/A')}</button></span>
                     </div>
                     <div class="popup-detail-item">
                         <span class="popup-label">Status:</span>
-                        <span class="popup-value ${statusClass}">${section.status || 'N/A'}</span>
+                        <span class="popup-value ${statusClass}">${escapePlannerHTML(sectionStatus)}</span>
                     </div>
                     <div class="popup-detail-item">
                         <span class="popup-label">Index:</span>
-                        <span class="popup-value">${section.index || 'N/A'}</span>
+                        <span class="popup-value">${escapePlannerHTML(section.index || 'N/A')}</span>
                     </div>
                 </div>
             </div>
@@ -491,7 +560,7 @@ function createCoursePopup(course, meeting, options = {}) {
             content += `
                 <div class="popup-section">
                     <div class="popup-section-header">Instructor</div>
-                    <div class="popup-value">${instructors}</div>
+                <div class="popup-value">${escapePlannerHTML(instructors)}</div>
                 </div>
             `;
         }
@@ -504,18 +573,18 @@ function createCoursePopup(course, meeting, options = {}) {
                 <div class="popup-details-grid">
                     <div class="popup-detail-item">
                         <span class="popup-label">Credits:</span>
-                        <span class="popup-value">${course.creditsDescription || course.credits || 'N/A'}</span>
+                        <span class="popup-value">${escapePlannerHTML(course.creditsDescription || course.credits || 'N/A')}</span>
                     </div>
                     <div class="popup-detail-item">
                         <span class="popup-label">School:</span>
-                        <span class="popup-value">${course.school || 'N/A'}</span>
+                        <span class="popup-value">${escapePlannerHTML(course.school || 'N/A')}</span>
                     </div>
                 </div>
             </div>
     `;
     
     // All meeting times
-    if (course.selectedSection && course.selectedSection.meetingTimes && course.selectedSection.meetingTimes.length > 0) {
+    if (course.selectedSection && Array.isArray(course.selectedSection.meetingTimes) && course.selectedSection.meetingTimes.length > 0) {
         content += `
             <div class="popup-section">
                 <div class="popup-section-header">Schedule</div>
@@ -528,9 +597,9 @@ function createCoursePopup(course, meeting, options = {}) {
                 : (mt.building || 'TBA');
             content += `
                     <div class="popup-meeting-item">
-                        <div class="popup-meeting-day">${mt.day || 'N/A'}</div>
-                        <div class="popup-meeting-time">${mt.startTime?.formatted || 'TBA'} - ${mt.endTime?.formatted || 'TBA'}</div>
-                        <div class="popup-meeting-location">${buildingRoom} ${mt.campus || ''}</div>
+                        <div class="popup-meeting-day">${escapePlannerHTML(mt.day || 'N/A')}</div>
+                        <div class="popup-meeting-time">${escapePlannerHTML(mt.startTime?.formatted || 'TBA')} - ${escapePlannerHTML(mt.endTime?.formatted || 'TBA')}</div>
+                        <div class="popup-meeting-location">${escapePlannerHTML(buildingRoom)} ${escapePlannerHTML(mt.campus || '')}</div>
                     </div>
             `;
         });
@@ -658,36 +727,27 @@ function updatePlannerUI() {
     const emptyState = document.getElementById('emptyState');
     const courseList = document.getElementById('courseList');
 
-    // Check if planner popup is open before updating UI elements
-    if (!isPlannerOpen) {
-        return;
-    }
-
-    // Update course count with null checks
     if (courseCountSpan) {
         courseCountSpan.textContent = courseCount;
     }
-    
     if (courseCount > 0) {
-        if (courseCountBadge) {
-            courseCountBadge.style.display = 'block';
-        }
+        if (courseCountBadge) courseCountBadge.style.display = 'flex';
         if (tooltipText) {
             tooltipText.textContent = `View ${courseCount} course${courseCount !== 1 ? 's' : ''} in your schedule`;
         }
     } else {
-        if (courseCountBadge) {
-            courseCountBadge.style.display = 'none';
-        }
+        if (courseCountBadge) courseCountBadge.style.display = 'none';
         if (tooltipText) {
             tooltipText.textContent = 'Open Calendar';
         }
     }
-
-    // Update planner subtitle with null check
     if (plannerSubtitle) {
         plannerSubtitle.textContent = `${courseCount} course${courseCount !== 1 ? 's' : ''} scheduled`;
     }
+    updateStats();
+
+    // The floating count is shared by every page, while the popup may not be open.
+    if (!isPlannerOpen) return;
 
     // Show/hide content based on course count with null checks
     if (courseCount > 0) {
@@ -698,7 +758,6 @@ function updatePlannerUI() {
             courseList.style.display = 'block';
         }
         updateCourseList();
-        updateStats();
     } else {
         if (emptyState) {
             emptyState.style.display = 'block';
@@ -798,8 +857,15 @@ function showCourseDetail(courseIndex) {
     updateDetailPanelHeader('details', scheduledCourses[courseIndex]);
     panel.classList.add('is-open');
     panel.setAttribute('aria-hidden', 'false');
+    resetMobilePlannerBodyScroll(panel);
     clearSectionPreview();
     renderDetailPanelContent(scheduledCourses[courseIndex], courseIndex);
+}
+
+function resetMobilePlannerBodyScroll(panel) {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 768px)').matches) return;
+    const plannerBody = panel?.closest('.planner-body');
+    if (plannerBody) plannerBody.scrollTop = 0;
 }
 
 function renderDetailPanelContent(course, courseIndex) {
@@ -823,6 +889,7 @@ async function showSectionSelector(courseIndex) {
     updateDetailPanelHeader('sections', course);
     panel.classList.add('is-open');
     panel.setAttribute('aria-hidden', 'false');
+    resetMobilePlannerBodyScroll(panel);
     clearSectionPreview();
     if (detailPanelEmptyState) {
         detailPanelEmptyState.style.display = 'none';
@@ -833,6 +900,14 @@ async function showSectionSelector(courseIndex) {
 
     const sections = await fetchCourseSections(course);
     if (!detailPanelBody) return;
+    if (
+        !panel.classList.contains('is-open')
+        || detailPanelMode !== 'sections'
+        || detailPanelCourseIndex !== courseIndex
+        || scheduledCourses[courseIndex] !== course
+    ) {
+        return;
+    }
 
     if (!sections.length) {
         detailPanelBody.innerHTML = `<div class="section-list-empty">No alternative sections found for this course.</div>`;
@@ -852,14 +927,14 @@ async function showSectionSelector(courseIndex) {
                 const location = `${mt.building || 'TBA'} ${mt.room || ''}`.trim();
                 const statusClass = (section.status || '').toLowerCase() === 'open' ? 'open' : 'closed';
                 return `
-                    <button type="button" class="section-option${isCurrent ? ' active' : ''}" data-index="${sectionIndex}">
+                    <button type="button" class="section-option${isCurrent ? ' active' : ''}" data-index="${escapePlannerHTML(sectionIndex)}">
                         <div class="section-top">
-                            <span class="section-code">Section ${section.number}</span>
-                            <span class="section-index">Index ${sectionIndex}</span>
-                            <span class="status-pill ${statusClass}">${section.status || ''}</span>
+                            <span class="section-code">Section ${escapePlannerHTML(section.number)}</span>
+                            <span class="section-index">Index ${escapePlannerHTML(sectionIndex)}</span>
+                            <span class="status-pill ${statusClass}">${escapePlannerHTML(section.status || '')}</span>
                         </div>
-                        <div class="section-times">${dayText} • ${startText} - ${endText}</div>
-                        <div class="section-meta">${location || 'Location TBA'}</div>
+                        <div class="section-times">${escapePlannerHTML(dayText)} • ${escapePlannerHTML(startText)} - ${escapePlannerHTML(endText)}</div>
+                        <div class="section-meta">${escapePlannerHTML(location || 'Location TBA')}</div>
                     </button>
                 `;
             }).join('')}
@@ -1015,41 +1090,40 @@ function previewSectionOnCalendar(course, section) {
     const GRID_START_HOUR = 7;
     const ROW_HEIGHT_PX = firstRow.offsetHeight || 45;
     const PX_PER_MIN = ROW_HEIGHT_PX / 60;
-    const dayMap = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
-
-    function parseTimeToMinutesSimple(timeStr) {
-        if (!timeStr) return null;
-        const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (!m) return null;
-        let h = parseInt(m[1], 10);
-        const mins = parseInt(m[2], 10);
-        const p = m[3].toUpperCase();
-        if (p === 'PM' && h !== 12) h += 12;
-        if (p === 'AM' && h === 12) h = 0;
-        return h * 60 + mins;
-    }
+    const dayMap = new Map([
+        ['monday', 0], ['mon', 0], ['m', 0],
+        ['tuesday', 1], ['tue', 1], ['tu', 1], ['t', 1],
+        ['wednesday', 2], ['wed', 2], ['w', 2],
+        ['thursday', 3], ['thu', 3], ['th', 3], ['h', 3],
+        ['friday', 4], ['fri', 4], ['f', 4]
+    ]);
 
     section.meeting_times.forEach(mt => {
-        const dIndex = dayMap[mt.day];
+        const dIndex = dayMap.get(String(mt.day || '').trim().toLowerCase());
         if (dIndex === undefined) return;
-        const start = parseTimeToMinutesSimple(mt.start_time?.formatted);
-        const end = parseTimeToMinutesSimple(mt.end_time?.formatted) || (start !== null ? start + 60 : null);
-        if (start === null || end === null) return;
+        const start = parsePlannerTimeToMinutes(mt.start_time?.formatted);
+        const endText = mt.end_time?.formatted;
+        const parsedEnd = parsePlannerTimeToMinutes(endText);
+        const end = endText ? parsedEnd : (start === null ? null : start + 60);
+        if (start === null || end === null || end <= start) return;
+        if (start < GRID_START_HOUR * 60 || start >= 24 * 60) return;
 
         const dayOverlay = document.querySelector(`.day-overlay[data-day="${dIndex}"]`);
         if (!dayOverlay) return;
 
         const top = (start - GRID_START_HOUR * 60) * PX_PER_MIN;
-        const height = Math.max((end - start) * PX_PER_MIN, 18);
+        const visibleEnd = Math.min(end, 24 * 60);
+        const maxVisibleHeight = ((24 - GRID_START_HOUR) * 60 - (start - GRID_START_HOUR * 60)) * PX_PER_MIN;
+        const height = Math.min(Math.max((visibleEnd - start) * PX_PER_MIN, 18), maxVisibleHeight);
 
         const ghost = document.createElement('div');
         ghost.className = 'ghost-course-block';
         ghost.style.top = `${top}px`;
         ghost.style.height = `${height}px`;
         ghost.innerHTML = `
-            <div class="course-title">${course.courseString} (Sec ${section.number})</div>
-            <div class="course-time">${mt.start_time?.formatted || 'TBA'} - ${mt.end_time?.formatted || 'TBA'}</div>
-            <div class="course-location">${mt.building || 'TBA'}</div>
+            <div class="course-title">${escapePlannerHTML(course.courseString)} (Sec ${escapePlannerHTML(section.number)})</div>
+            <div class="course-time">${escapePlannerHTML(mt.start_time?.formatted || 'TBA')} - ${escapePlannerHTML(mt.end_time?.formatted || 'TBA')}</div>
+            <div class="course-location">${escapePlannerHTML(mt.building || 'TBA')}</div>
         `;
         dayOverlay.appendChild(ghost);
         ghostBlocks.push(ghost);
@@ -1059,6 +1133,7 @@ function previewSectionOnCalendar(course, section) {
 function applySectionSelection(courseIndex, section) {
     const course = scheduledCourses[courseIndex];
     if (!course) return;
+    const conflictsBefore = getScheduleConflicts().conflicts.length;
     
     // Ensure planner stays open
     if (!isPlannerOpen) {
@@ -1075,6 +1150,7 @@ function applySectionSelection(courseIndex, section) {
             startTime: { formatted: mt.start_time?.formatted || 'TBA' },
             endTime: { formatted: mt.end_time?.formatted || 'TBA' },
             building: mt.building || '',
+            room: mt.room || '',
             campus: mt.campus || ''
         }))
     };
@@ -1086,7 +1162,16 @@ function applySectionSelection(courseIndex, section) {
     
     updatePlannerUI();
     showCourseDetail(courseIndex);
-    showNotification(`Switched to section ${section.number} (Index ${section.index})`, 'success');
+    const conflictsAfter = getScheduleConflicts().conflicts.length;
+    if (conflictsAfter > conflictsBefore) {
+        const newConflictCount = conflictsAfter - conflictsBefore;
+        showNotification(
+            `Switched to section ${section.number}. This adds ${newConflictCount} schedule conflict${newConflictCount === 1 ? '' : 's'}.`,
+            'warning'
+        );
+    } else {
+        showNotification(`Switched to section ${section.number} (Index ${section.index})`, 'success');
+    }
     clearSectionPreview();
 }
 
@@ -1098,7 +1183,7 @@ function updateCourseList() {
     function getCampusColor(campusName) {
         if (!campusName) return '#cc0000'; // Default red if no campus
         
-        const campus = campusName.trim().toLowerCase();
+        const campus = String(campusName).trim().toLowerCase();
         
         // Handle various campus name formats
         if (campus.includes('college ave') || campus.includes('college avenue')) {
@@ -1119,14 +1204,14 @@ function updateCourseList() {
     
     // Get primary campus from first meeting time, or use first campus location
     function getPrimaryCampus(course) {
-        if (course.selectedSection && course.selectedSection.meetingTimes && course.selectedSection.meetingTimes.length > 0) {
+        if (course.selectedSection && Array.isArray(course.selectedSection.meetingTimes) && course.selectedSection.meetingTimes.length > 0) {
             const firstMeeting = course.selectedSection.meetingTimes[0];
             if (firstMeeting.campus) {
                 return firstMeeting.campus;
             }
         }
         // Fallback to campusLocations if available
-        if (course.campusLocations && course.campusLocations.length > 0) {
+        if (Array.isArray(course.campusLocations) && course.campusLocations.length > 0) {
             return course.campusLocations[0];
         }
         return null;
@@ -1139,30 +1224,30 @@ function updateCourseList() {
         return `
         <div class="course-card" style="border-left-color: ${campusColor} !important;">
             <div class="course-header">
-                <h5 class="course-detail-trigger" data-course-index="${index}">${course.courseString} - ${course.title}</h5>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeCourse(${index})">
+                <h5 class="course-detail-trigger" data-course-index="${index}">${escapePlannerHTML(course.courseString)} - ${escapePlannerHTML(course.title)}</h5>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeCourse(${index})" aria-label="Remove ${escapePlannerHTML(course.courseString || 'course')} from planner">
                     <i class="bi bi-x"></i>
                 </button>
             </div>
             <div class="course-details">
-                <p><strong>Subject:</strong> ${course.subject} - ${course.subjectDescription || course.subject}</p>
-                <p><strong>Credits:</strong> ${course.creditsDescription || course.credits}</p>
-                <p><strong>School:</strong> ${course.school || 'N/A'}</p>
+                <p><strong>Subject:</strong> ${escapePlannerHTML(course.subject)} - ${escapePlannerHTML(course.subjectDescription || course.subject)}</p>
+                <p><strong>Credits:</strong> ${escapePlannerHTML(course.creditsDescription || course.credits)}</p>
+                <p><strong>School:</strong> ${escapePlannerHTML(course.school || 'N/A')}</p>
                 ${course.selectedSection ? `
                     <div class="section-info mt-3">
                         <div class="d-flex gap-2 mb-2">
-                            <button class="badge bg-primary section-switcher-btn" type="button" data-course-index="${index}">Section ${course.selectedSection.number}</button>
-                            <span class="badge ${course.selectedSection.status.toLowerCase() === 'open' ? 'bg-success' : 'bg-danger'}">${course.selectedSection.status}</span>
-                            <span class="badge bg-info">Index: ${course.selectedSection.index}</span>
+                            <button class="badge bg-primary section-switcher-btn" type="button" data-course-index="${index}">Section ${escapePlannerHTML(course.selectedSection.number)}</button>
+                            <span class="badge ${String(course.selectedSection.status || '').toLowerCase() === 'open' ? 'bg-success' : 'bg-danger'}">${escapePlannerHTML(course.selectedSection.status || 'Unknown')}</span>
+                            <span class="badge bg-info">Index: ${escapePlannerHTML(course.selectedSection.index)}</span>
                         </div>
-                        <p class="mb-1"><strong>Instructor:</strong> ${course.selectedSection.instructors.join(', ')}</p>
-                        ${course.selectedSection.meetingTimes && course.selectedSection.meetingTimes.length > 0 ? `
+                        <p class="mb-1"><strong>Instructor:</strong> ${escapePlannerHTML(Array.isArray(course.selectedSection.instructors) ? course.selectedSection.instructors.join(', ') : 'TBA')}</p>
+                        ${Array.isArray(course.selectedSection.meetingTimes) && course.selectedSection.meetingTimes.length > 0 ? `
                             <div class="meeting-times">
                                 <strong>Schedule:</strong><br>
                                 ${course.selectedSection.meetingTimes.map(time => `
                                     <small class="text-muted">
-                                        ${time.day} ${time.startTime.formatted} - ${time.endTime.formatted}<br>
-                                        ${time.building} ${time.campus}
+                                        ${escapePlannerHTML(time.day)} ${escapePlannerHTML(time.startTime?.formatted || 'TBA')} - ${escapePlannerHTML(time.endTime?.formatted || 'TBA')}<br>
+                                        ${escapePlannerHTML(time.building)} ${escapePlannerHTML(time.campus)}
                                     </small>
                                 `).join('<br>')}
                             </div>
@@ -1207,15 +1292,24 @@ function updateStats() {
         totalCoursesEl.textContent = scheduledCourses.length;
     }
     
-    // Calculate unique campuses
-    const campuses = new Set(scheduledCourses.map(c => c.campusLocations?.[0] || 'Unknown'));
+    // Count campuses from the selected sections, not the course's unfiltered campus list.
+    const campuses = new Set();
+    scheduledCourses.forEach(course => {
+        const meetings = course.selectedSection?.meetingTimes;
+        const locations = Array.isArray(meetings) && meetings.length
+            ? meetings.map(meeting => meeting.campus)
+            : (Array.isArray(course.campusLocations) ? course.campusLocations : []);
+        locations.forEach(location => {
+            const normalized = String(location || '').trim().toLowerCase();
+            if (normalized && normalized !== 'n/a' && normalized !== 'unknown') campuses.add(normalized);
+        });
+    });
     if (campusCountEl) {
         campusCountEl.textContent = campuses.size;
     }
     
-    // Time conflicts (simplified - you can implement more complex logic)
     if (timeConflictsEl) {
-        timeConflictsEl.textContent = '0';
+        timeConflictsEl.textContent = getScheduleConflicts().conflicts.length;
     }
 }
 
@@ -1234,14 +1328,23 @@ function addCourseToPlanner(course) {
         return;
     }
 
+    const conflictsBefore = getScheduleConflicts().conflicts.length;
     // Add course to planner
     scheduledCourses.push(course);
     localStorage.setItem('scheduledCourses', JSON.stringify(scheduledCourses));
     updatePlannerUI();
     
-    // Show success message
     const sectionInfo = course.selectedSection ? ` (Section ${course.selectedSection.number})` : '';
-    showNotification(`Course added to planner${sectionInfo}!`, 'success');
+    const conflictsAfter = getScheduleConflicts().conflicts.length;
+    if (conflictsAfter > conflictsBefore) {
+        const newConflictCount = conflictsAfter - conflictsBefore;
+        showNotification(
+            `Course added to planner${sectionInfo}. It adds ${newConflictCount} schedule conflict${newConflictCount === 1 ? '' : 's'}.`,
+            'warning'
+        );
+    } else {
+        showNotification(`Course added to planner${sectionInfo}!`, 'success');
+    }
 }
 
 function removeCourse(index) {
@@ -1255,10 +1358,11 @@ function removeCourse(index) {
 function showNotification(message, type = 'info') {
     // Create a simple notification
     const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    const notificationType = ['info', 'warning', 'success', 'danger'].includes(type) ? type : 'info';
+    notification.className = `alert alert-${notificationType} alert-dismissible fade show position-fixed`;
     notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
     notification.innerHTML = `
-        ${message}
+        ${escapePlannerHTML(message)}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     document.body.appendChild(notification);
@@ -1273,6 +1377,9 @@ function showNotification(message, type = 'info') {
 
 // Initialize floating button on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize persisted counts and statistics on every page that includes
+    // the shared planner, including room search and room details.
+    updatePlannerUI();
     showFloatingButton();
     
     // Initialize calendar grid

@@ -7,11 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=3">
-    <link rel="stylesheet" href="/static/css/floating-planner.css?v=2">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=7">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=8">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/course-planner.js"></script>
+    <script src="/static/js/course-planner.js?v=13"></script>
     <script defer src="/static/js/liquid-glass.js?v=1"></script>
     <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
@@ -46,21 +46,21 @@
         <h2 class="mb-4">Search</h2>
 
         <div class="search-params mt-4">
-            <p class="mb-1">
-                <strong>Year:</strong> {{ year }}
-                <strong class="ms-3">Term:</strong> 
+            <div class="search-params-content">
+                <span class="search-param"><strong>Year:</strong> {{ year }}</span>
+                <span class="search-param"><strong>Term:</strong>
                 {% if term == '0' %}Winter
                 {% elif term == '1' %}Spring
                 {% elif term == '7' %}Summer
                 {% elif term == '9' %}Fall
-                {% endif %}
-                <strong class="ms-3">Campus:</strong> 
+                {% endif %}</span>
+                <span class="search-param"><strong>Campus:</strong>
                 {% if campus == 'NB' %}New Brunswick
                 {% elif campus == 'NK' %}Newark
                 {% elif campus == 'CM' %}Camden
-                {% endif %}
-                <a href="/" class="btn btn-sm btn-outline-secondary float-end">Change</a>
-            </p>
+                {% endif %}</span>
+                <a href="/" class="btn btn-sm btn-outline-secondary">Change</a>
+            </div>
         </div>
 
         <!-- Main tabs -->
@@ -170,7 +170,7 @@
                             
                             <div class="row">
                                 <div class="col-12 mb-4">
-                                    <label class="form-label mb-3">Time Range: <span id="timeRangeDisplay">8:00 AM - 9:40 AM</span></label>
+                                    <label class="form-label mb-3">Time Range: <span id="timeRangeDisplay">8:00 AM - 9:00 AM</span></label>
                                     
                                     <div class="mb-3">
                                         <label for="startTimeSlider" class="form-label small">Start Time</label>
@@ -201,7 +201,7 @@
                                 
                                 <!-- Hidden inputs to store actual time values -->
                                 <input type="hidden" id="startTimeFilter" value="8:00 AM">
-                                <input type="hidden" id="endTimeFilter" value="9:40 AM">
+                                <input type="hidden" id="endTimeFilter" value="9:00 AM">
                             </div>
                             
                             <div class="filter-message alert alert-info d-none" id="filterMessage">
@@ -224,14 +224,14 @@
         </div>
         
         <!-- Filter summary -->
-        <div id="filterSummary" class="alert alert-success mb-3 d-none">
+        <div id="filterSummary" class="filter-summary alert alert-success mb-3 d-none">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <i class="bi bi-funnel-fill me-2"></i>
                     <span id="filterSummaryText"></span>
                 </div>
                 <button type="button" id="clearFilters" class="btn btn-sm btn-outline-success">
-                    <i class="bi bi-x-circle me-1"></i>Clear Filter
+                    <i class="bi bi-x-circle me-1"></i>Clear Filters
                 </button>
             </div>
         </div>
@@ -250,7 +250,19 @@
         const timeRangeDisplay = document.getElementById('timeRangeDisplay');
         const filterMessage = document.getElementById('filterMessage');
         const availabilityFilters = document.getElementById('availabilityFilters');
-        const filterChevron = document.getElementById('filterChevron');
+        const roomSearchForm = document.getElementById('roomSearchForm');
+        const buildingTypeCheckboxes = [
+            { input: document.getElementById('typeClassroom'), label: 'Classrooms', parameter: 'type_classroom' },
+            { input: document.getElementById('typeLecture'), label: 'Lecture halls', parameter: 'type_lecture' },
+            { input: document.getElementById('typeLab'), label: 'Labs', parameter: 'type_lab' }
+        ];
+        const campusCheckboxes = [
+            { input: document.getElementById('campusCollegeAve'), label: 'College Ave', parameter: 'campus_college_ave' },
+            { input: document.getElementById('campusBusch'), label: 'Busch', parameter: 'campus_busch' },
+            { input: document.getElementById('campusLivingston'), label: 'Livingston', parameter: 'campus_livingston' },
+            { input: document.getElementById('campusCookDoug'), label: 'Cook/Doug', parameter: 'campus_cook_doug' }
+        ];
+        let latestRoomSearchId = 0;
         
         // Define class time options for the sliders
         const timeOptions = [
@@ -277,6 +289,10 @@
             { value: "10:00 PM", label: "10:00 PM" }
         ];
 
+        // Keep the range endpoints aligned with the actual selectable values.
+        startTimeSlider.max = String(timeOptions.length - 2);
+        endTimeSlider.max = String(timeOptions.length - 1);
+
         // Time offset options that match standard class durations
         const timeOffsets = [
             { value: "1 hr", minutes: 60 },
@@ -296,13 +312,16 @@
         updateTimeRange();
         
         function updateTimeRange() {
-            const startIndex = parseInt(startTimeSlider.value);
-            const endIndex = parseInt(endTimeSlider.value);
+            const maxStartIndex = timeOptions.length - 2;
+            const startIndex = Math.min(parseInt(startTimeSlider.value, 10), maxStartIndex);
+            let endIndex = parseInt(endTimeSlider.value, 10);
             
             // Make sure end index is always at least one position after start index
             if (endIndex <= startIndex) {
-                endTimeSlider.value = Math.min(startIndex + 1, timeOptions.length - 1);
+                endIndex = Math.min(startIndex + 1, timeOptions.length - 1);
             }
+            startTimeSlider.value = startIndex;
+            endTimeSlider.value = endIndex;
             
             // Get the selected start and end times
             const startTime = timeOptions[parseInt(startTimeSlider.value)].value;
@@ -322,9 +341,8 @@
             if (filterAvailableCheckbox.checked) {
                 // Open the filters panel if it's not already open
                 if (!availabilityFilters.classList.contains('show')) {
-                    availabilityFilters.classList.add('show');
-                    filterChevron.classList.remove('bi-chevron-down');
-                    filterChevron.classList.add('bi-chevron-up');
+                    bootstrap.Collapse.getOrCreateInstance(availabilityFilters, { toggle: false }).show();
+                    updateCollapseChevron(availabilityFilters, true);
                 }
                 
                 // Show or hide message based on filter selections
@@ -352,11 +370,22 @@
         }
         
         // Handle the form submission with filters
-        document.getElementById('roomSearchForm').addEventListener('submit', async (e) => {
+        roomSearchForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const search = document.getElementById('search').value;
+            const requestId = ++latestRoomSearchId;
+            const search = document.getElementById('search').value.trim();
             const loadingSpinner = document.getElementById('loadingSpinner');
             const resultsDiv = document.getElementById('results');
+            document.getElementById('filterSummary').classList.add('d-none');
+
+            if (filterAvailableCheckbox.checked && !dayFilter.value) {
+                filterMessage.classList.remove('d-none');
+                filterMessage.textContent = 'Select a day to filter for available rooms';
+                dayFilter.focus();
+                resultsDiv.innerHTML = '<div class="alert alert-info">Select a day to check room availability.</div>';
+                loadingSpinner.style.display = 'none';
+                return;
+            }
 
             loadingSpinner.style.display = 'block';
             resultsDiv.innerHTML = '';
@@ -368,6 +397,20 @@
                 campus: '{{ campus }}',
                 search: search
             });
+
+            const selectedBuildingTypes = buildingTypeCheckboxes.filter(({ input }) => input.checked);
+            const buildingTypeFilterActive = selectedBuildingTypes.length !== buildingTypeCheckboxes.length;
+            if (buildingTypeFilterActive) {
+                params.set('filter_building_types', 'true');
+                selectedBuildingTypes.forEach(({ parameter }) => params.append(parameter, 'true'));
+            }
+
+            const selectedCampuses = campusCheckboxes.filter(({ input }) => input.checked);
+            const campusFilterActive = selectedCampuses.length !== campusCheckboxes.length;
+            if (campusFilterActive) {
+                params.set('filter_campuses', 'true');
+                selectedCampuses.forEach(({ parameter }) => params.append(parameter, 'true'));
+            }
             
             // Add availability filters if enabled
             if (filterAvailableCheckbox.checked && dayFilter.value && 
@@ -381,25 +424,37 @@
             try {
                 const response = await fetch(`/api/rooms?${params}`);
                 const data = await response.json();
+                if (requestId !== latestRoomSearchId) return;
+                if (!response.ok || data.status !== 'success' || !Array.isArray(data.data)) {
+                    throw new Error(data.message || 'The room search could not be completed.');
+                }
+                updateSearchData(data.data);
 
-                loadingSpinner.style.display = 'none';
-                
                 // Update filter summary if filters are applied
                 const filterSummary = document.getElementById('filterSummary');
                 const filterSummaryText = document.getElementById('filterSummaryText');
                 
                 // Build filter summary text
                 let summaryParts = [];
-                let filtersApplied = false;
+                const filtersApplied = filterAvailableCheckbox.checked || buildingTypeFilterActive || campusFilterActive;
                 
                 // Check if availability filter is applied
                 if (filterAvailableCheckbox.checked && dayFilter.value && 
                     startTimeFilter.value && endTimeFilter.value) {
-                    filtersApplied = true;
                     summaryParts.push(`rooms available on ${dayFilter.value} from ${startTimeFilter.value} to ${endTimeFilter.value}`);
                 }
-                
-                // Campus filter has been removed as requested
+
+                if (buildingTypeFilterActive) {
+                    summaryParts.push(selectedBuildingTypes.length
+                        ? `building types: ${selectedBuildingTypes.map(({ label }) => label).join(', ')}`
+                        : 'no building types selected');
+                }
+
+                if (campusFilterActive) {
+                    summaryParts.push(selectedCampuses.length
+                        ? `campuses: ${selectedCampuses.map(({ label }) => label).join(', ')}`
+                        : 'no campuses selected');
+                }
                 
                 // If search was also applied, add it to the summary
                 if (search) {
@@ -409,7 +464,7 @@
                 if (filtersApplied) {
                     // Show the filter summary with details
                     filterSummary.classList.remove('d-none');
-                    filterSummaryText.textContent = `Showing ${summaryParts.join(' ')} (${data.data.length} rooms found)`;
+                    filterSummaryText.textContent = `Showing ${summaryParts.join(' · ')} (${data.data.length} rooms found)`;
                 } else {
                     // Hide the filter summary
                     filterSummary.classList.add('d-none');
@@ -417,30 +472,28 @@
 
                 if (data.status === 'success' && data.data.length > 0) {
                     // Group rooms by building for better organization
-                    const roomsByBuilding = {};
+                    const roomsByBuilding = new Map();
                     data.data.forEach(room => {
-                        const building = room.building;
-                        if (!roomsByBuilding[building]) {
-                            roomsByBuilding[building] = [];
-                        }
-                        roomsByBuilding[building].push(room);
+                        const building = String(room.building || 'Unknown building');
+                        if (!roomsByBuilding.has(building)) roomsByBuilding.set(building, []);
+                        roomsByBuilding.get(building).push(room);
                     });
 
                     let resultsHTML = '';
                     
-                    for (const [building, rooms] of Object.entries(roomsByBuilding)) {
+                    for (const [buildingIndex, [building, rooms]] of Array.from(roomsByBuilding.entries()).entries()) {
                         // Create a card for each building with collapsible content
-                        const buildingId = `building-${building.replace(/\s+/g, '-')}`;
+                        const buildingId = `building-${buildingIndex}`;
                         resultsHTML += `
                             <div class="card mb-4">
                                 <div class="card-header bg-light" style="cursor: pointer;" 
                                      data-bs-toggle="collapse" data-bs-target="#${buildingId}" 
                                      aria-expanded="false" aria-controls="${buildingId}">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0">${building} Building</h5>
+                                        <h5 class="mb-0">${escapeHtml(building)} Building</h5>
                                         <div class="d-flex align-items-center">
                                             <a href="https://www.google.com/search?q=${encodeURIComponent(building + ' Building Rutgers')}" 
-                                               target="_blank" 
+                                               target="_blank" rel="noopener noreferrer"
                                                class="me-3 text-primary" 
                                                title="Search for this building on Google">
                                                 <i class="bi bi-search"></i>
@@ -458,7 +511,13 @@
                         // Add rooms in this building
                         rooms.forEach(room => {
                             // Check if availability filter was applied
-                            const isAvailabilityFiltered = room.hasOwnProperty('is_available');
+                            const isAvailabilityFiltered = Object.prototype.hasOwnProperty.call(room, 'is_available');
+                            const hasCoordinates = room.latitude !== null && room.latitude !== undefined && room.latitude !== ''
+                                && room.longitude !== null && room.longitude !== undefined && room.longitude !== ''
+                                && Number.isFinite(Number(room.latitude)) && Number.isFinite(Number(room.longitude));
+                            const mapQuery = hasCoordinates
+                                ? `${room.latitude},${room.longitude}`
+                                : `${room.building || ''} ${room.room || ''} Rutgers`;
                             
                             // Prepare availability badge if filtering was applied
                             let availabilityBadge = '';
@@ -467,7 +526,7 @@
                                     <div class="mb-2">
                                         <span class="badge bg-success">
                                             <i class="bi bi-check-circle me-1"></i>
-                                            Available on ${room.checked_day} from ${room.checked_start_time} to ${room.checked_end_time}
+                                            Available on ${escapeHtml(room.checked_day)} from ${escapeHtml(room.checked_start_time)} to ${escapeHtml(room.checked_end_time)}
                                         </span>
                                     </div>
                                 `;
@@ -485,34 +544,37 @@
                                                     <small>
                                                         <div class="d-flex align-items-center mb-1">
                                                             <i class="bi bi-book me-1"></i>
-                                                            <strong>${course.code}: ${course.title}</strong>
+                                                            <strong>${escapeHtml(course.code)}: ${escapeHtml(course.title)}</strong>
                                                         </div>
                                                         <div class="ms-4">
                                                             ${course.school ? `
                                                                 <div class="mb-1">
                                                                     <i class="bi bi-building me-1"></i>
-                                                                    <span class="text-muted">School:</span> ${course.school}
+                                                                    <span class="text-muted">School:</span> ${escapeHtml(course.school)}
                                                                 </div>
                                                             ` : ''}
                                                             ${course.campus ? `
                                                                 <div class="mb-1">
                                                                     <i class="bi bi-geo-alt me-1"></i>
-                                                                    <span class="text-muted">Campus:</span> ${course.campus}
+                                                                    <span class="text-muted">Campus:</span> ${escapeHtml(course.campus)}
                                                                 </div>
                                                             ` : ''}
                                                             ${course.prerequisites ? `
                                                                 <div class="mb-1">
                                                                     <i class="bi bi-list-check me-1"></i>
-                                                                    <span class="text-muted">Prerequisites:</span> ${course.prerequisites}
+                                                                    <span class="text-muted">Prerequisites:</span> ${escapeHtml(course.prerequisites)}
                                                                 </div>
                                                             ` : ''}
                                                             ${course.coreCodes && course.coreCodes.length > 0 ? `
                                                                 <div class="mb-1">
                                                                     <i class="bi bi-tag me-1"></i>
                                                                     <span class="text-muted">Core Codes:</span>
-                                                                    ${course.coreCodes.map(code => `
-                                                                        <span class="badge bg-secondary me-1">${code}</span>
-                                                                    `).join('')}
+                                                                    ${course.coreCodes.map(core => {
+                                                                        const label = typeof core === 'object' && core !== null
+                                                                            ? [core.code, core.description].filter(Boolean).join(' - ')
+                                                                            : core;
+                                                                        return `<span class="badge bg-secondary me-1">${escapeHtml(label)}</span>`;
+                                                                    }).join('')}
                                                                 </div>
                                                             ` : ''}
                                                         </div>
@@ -531,14 +593,14 @@
                                             <h5 class="card-title">
                                                 <a href="/room-details?year={{ year }}&term={{ term }}&campus={{ campus }}&building=${encodeURIComponent(room.building)}&room=${encodeURIComponent(room.room)}" 
                                                    class="text-decoration-none">
-                                                    ${room.building} ${room.room}
+                                                    ${escapeHtml(room.building)} ${escapeHtml(room.room)}
                                                 </a>
                                             </h5>
                                             ${availabilityBadge}
                                             ${courseInfo}
                                             <div class="mt-2">
-                                                <a href="https://www.google.com/maps/search/?api=1&query=${room.latitude},${room.longitude}" 
-                                                   target="_blank" 
+                                                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}"
+                                                   target="_blank" rel="noopener noreferrer"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-geo-alt me-1"></i>
                                                     View on Map
@@ -563,21 +625,25 @@
                     resultsDiv.innerHTML = '<div class="alert alert-info">No rooms found matching your search criteria.</div>';
                 }
             } catch (error) {
-                loadingSpinner.style.display = 'none';
+                if (requestId !== latestRoomSearchId) return;
                 console.error('Error searching rooms:', error);
                 resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching rooms</div>';
+            } finally {
+                if (requestId === latestRoomSearchId) loadingSpinner.style.display = 'none';
             }
         });
 
         // Trigger the search on page load to show all rooms initially
         window.addEventListener('load', function() {
-            document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+            roomSearchForm.dispatchEvent(new Event('submit'));
         });
         
         // Set up the clear filters button
         document.getElementById('clearFilters').addEventListener('click', () => {
             // Reset filter UI
             filterAvailableCheckbox.checked = false;
+            buildingTypeCheckboxes.forEach(({ input }) => { input.checked = true; });
+            campusCheckboxes.forEach(({ input }) => { input.checked = true; });
             dayFilter.value = '';
             // Reset time range sliders
             startTimeSlider.value = 0;
@@ -588,41 +654,46 @@
             document.getElementById('filterSummary').classList.add('d-none');
             filterMessage.classList.add('d-none');
             
-            // Close the filter panel
-            if (availabilityFilters.classList.contains('show')) {
-                availabilityFilters.classList.remove('show');
-                filterChevron.classList.remove('bi-chevron-up');
-                filterChevron.classList.add('bi-chevron-down');
-            }
+            // Close both panels through Bootstrap so classes, ARIA state, and
+            // chevrons stay in sync with the visible state.
+            bootstrap.Collapse.getOrCreateInstance(availabilityFilters, { toggle: false }).hide();
+            updateCollapseChevron(availabilityFilters, false);
+            const searchFilters = document.getElementById('searchFilters');
+            bootstrap.Collapse.getOrCreateInstance(searchFilters, { toggle: false }).hide();
+            updateCollapseChevron(searchFilters, false);
             
             // Trigger a new search without filters
-            document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+            roomSearchForm.dispatchEvent(new Event('submit'));
         });
         
-        // Add event listener for collapse events to handle the chevron icon rotation
-        document.addEventListener('click', function(e) {
-            // Check if the clicked element or its parent has data-bs-toggle="collapse"
-            const toggleElement = e.target.closest('[data-bs-toggle="collapse"]');
-            
-            if (toggleElement) {
-                const targetId = toggleElement.getAttribute('data-bs-target');
-                const target = document.querySelector(targetId);
-                const icon = toggleElement.querySelector('.bi-chevron-down, .bi-chevron-up');
-                
-                if (target && icon) {
-                    // Check if the target is currently collapsed
-                    const isCollapsed = !target.classList.contains('show');
-                    
-                    // Toggle the icon based on collapse state
-                    if (isCollapsed) {
-                        icon.classList.remove('bi-chevron-down');
-                        icon.classList.add('bi-chevron-up');
-                    } else {
-                        icon.classList.remove('bi-chevron-up');
-                        icon.classList.add('bi-chevron-down');
-                    }
-                }
+        // Keep the chevron in sync with Bootstrap's actual collapse state,
+        // including panels opened from the availability checkbox.
+        function updateCollapseChevron(collapseElement, expanded) {
+            const trigger = document.querySelector(`[data-bs-target="#${collapseElement.id}"]`);
+            const icon = trigger?.querySelector('.bi-chevron-down, .bi-chevron-up');
+            if (trigger) trigger.setAttribute('aria-expanded', String(expanded));
+            if (icon) {
+                icon.classList.toggle('bi-chevron-up', expanded);
+                icon.classList.toggle('bi-chevron-down', !expanded);
             }
+        }
+
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest?.('[data-bs-toggle="collapse"]');
+            const targetSelector = trigger?.getAttribute('data-bs-target');
+            const collapseElement = targetSelector ? document.querySelector(targetSelector) : null;
+            if (!collapseElement) return;
+
+            requestAnimationFrame(() => {
+                updateCollapseChevron(collapseElement, collapseElement.classList.contains('show'));
+            });
+        });
+
+        document.addEventListener('shown.bs.collapse', (event) => {
+            updateCollapseChevron(event.target, true);
+        });
+        document.addEventListener('hidden.bs.collapse', (event) => {
+            updateCollapseChevron(event.target, false);
         });
 
         // Search Autocomplete
@@ -632,6 +703,9 @@
         let searchTimeout = null;
         let allBuildings = new Set();
         let allRooms = new Set();
+        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[character]);
 
         // Function to update suggestions
         function updateSuggestions(query) {
@@ -640,7 +714,11 @@
                 return;
             }
 
-            query = query.toLowerCase();
+            query = query.trim().toLowerCase();
+            if (!query) {
+                searchSuggestions.style.display = 'none';
+                return;
+            }
             const suggestions = [];
 
             // Add building matches
@@ -648,8 +726,7 @@
                 if (building.toLowerCase().includes(query)) {
                     suggestions.push({
                         type: 'building',
-                        text: building,
-                        display: `<i class="bi bi-building me-2"></i>${building}`
+                        text: building
                     });
                 }
             });
@@ -659,24 +736,26 @@
                 if (room.toLowerCase().includes(query)) {
                     suggestions.push({
                         type: 'room',
-                        text: room,
-                        display: `<i class="bi bi-door-open me-2"></i>${room}`
+                        text: room
                     });
                 }
             });
 
             // Display suggestions
             if (suggestions.length > 0) {
-                searchSuggestions.innerHTML = suggestions
-                    .slice(0, 5)
-                    .map(suggestion => `
-                        <a href="#" class="list-group-item list-group-item-action" 
-                           data-type="${suggestion.type}" 
-                           data-text="${suggestion.text}">
-                            ${suggestion.display}
-                        </a>
-                    `)
-                    .join('');
+                const fragment = document.createDocumentFragment();
+                suggestions.slice(0, 5).forEach((suggestion) => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'list-group-item list-group-item-action text-start';
+                    item.dataset.type = suggestion.type;
+                    item.dataset.text = suggestion.text;
+                    const icon = document.createElement('i');
+                    icon.className = `bi ${suggestion.type === 'building' ? 'bi-building' : 'bi-door-open'} me-2`;
+                    item.append(icon, document.createTextNode(suggestion.text));
+                    fragment.appendChild(item);
+                });
+                searchSuggestions.replaceChildren(fragment);
                 searchSuggestions.style.display = 'block';
             } else {
                 searchSuggestions.style.display = 'none';
@@ -706,7 +785,7 @@
                 searchInput.value = item.dataset.text;
                 searchSuggestions.style.display = 'none';
                 // Trigger search
-                document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+                roomSearchForm.dispatchEvent(new Event('submit'));
             }
         });
 
@@ -714,7 +793,7 @@
         clearSearchBtn.addEventListener('click', () => {
             searchInput.value = '';
             searchSuggestions.style.display = 'none';
-            document.getElementById('roomSearchForm').dispatchEvent(new Event('submit'));
+            roomSearchForm.dispatchEvent(new Event('submit'));
         });
 
         // Close suggestions when clicking outside
@@ -736,24 +815,6 @@
             });
         }
 
-        // Modify the existing form submission handler
-        document.getElementById('roomSearchForm').addEventListener('submit', async (e) => {
-            // ... existing code ...
-
-            try {
-                const response = await fetch(`/api/rooms?${params}`);
-                const data = await response.json();
-
-                // Update search data
-                if (data.status === 'success') {
-                    updateSearchData(data.data);
-                }
-
-                // ... rest of existing code ...
-            } catch (error) {
-                // ... existing error handling ...
-            }
-        });
     </script>
 
     <!-- Floating Course Planner Button -->
@@ -789,10 +850,10 @@
                     <p>Plan and visualize your class schedule</p>
                 </div>
                 <div class="planner-actions">
-                    <button class="btn btn-primary" onclick="closePlanner()">
-                        <i class="bi bi-search me-1"></i>Search Classes
+                    <button class="btn btn-primary" onclick="searchClassesFromPlanner()" aria-label="Go to course search">
+                        <i class="bi bi-search me-1"></i><span class="planner-search-label">Search Classes</span>
                     </button>
-                    <button class="btn btn-close" onclick="closePlanner()"></button>
+                    <button class="btn btn-close" onclick="closePlanner()" aria-label="Close planner"></button>
                 </div>
             </div>
 
@@ -848,7 +909,7 @@
                 <div class="planner-main">
                     <!-- Calendar View -->
                     <div id="calendarView" class="calendar-view">
-                        <div class="weekly-calendar">
+                        <div class="weekly-calendar" role="region" aria-label="Weekly class calendar. Scroll horizontally to view all weekdays." tabindex="0">
                             <div class="calendar-header">
                                 <div class="time-column"></div>
                                 <div class="day-header">Monday</div>

@@ -10,6 +10,8 @@
     --glass-radius-shell: 30px;
     --glass-radius-shell-compact: 24px;
     --glass-radius-panel: 20px;
+    --glass-radius-card: 16px;
+    --glass-radius-control: 12px;
     --glass-radius-field: 14px;
     --glass-radius-pill: 999px;
 }
@@ -451,6 +453,8 @@ select.form-control:focus {
 
 .filter-summary .btn-outline-success {
     background: transparent;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .btn:focus-visible,
@@ -473,6 +477,30 @@ select.form-control:focus {
     width: 1%;
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.search-params-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+}
+
+.search-param {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.search-params-content > .btn {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.search-result-item > .card-header h4 {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 /* Glass only the filter panels and their disclosure controls; result cards stay intact. */
@@ -500,6 +528,32 @@ select.form-control:focus {
     color: var(--glass-ink);
 }
 
+/* Keep legacy result cards and planner details on the same radius scale. */
+.search-result-item.card,
+#results .card {
+    border-radius: var(--glass-radius-card);
+}
+
+.planner-popup .calendar-view,
+.planner-popup .popup-meeting-item,
+.planner-popup .section-option,
+.planner-popup .section-item.card,
+.planner-popup .list-view .course-card {
+    border-radius: var(--glass-radius-card) !important;
+}
+
+.planner-popup .course-block,
+.planner-popup .ghost-course-block {
+    border-radius: var(--glass-radius-control);
+}
+
+.planner-popup .course-header .btn-outline-danger,
+.planner-popup .section-info .badge,
+.planner-popup .section-option .status-pill,
+.planner-popup .section-item .add-to-planner-btn {
+    border-radius: var(--glass-radius-pill) !important;
+}
+
 @media (max-width: 575.98px) {
     .navbar {
         padding: 0.6rem 0;
@@ -524,6 +578,26 @@ select.form-control:focus {
 
     .navbar-brand {
         font-size: 1.1rem;
+    }
+
+    .search-params-content {
+        column-gap: 0.75rem;
+    }
+
+    .search-params-content > .btn {
+        margin-left: 0;
+    }
+
+    .search-result-item > .card-header {
+        align-items: flex-start !important;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .search-result-item > .card-header h4 {
+        width: 100%;
+        font-size: 1.1rem;
+        line-height: 1.3;
     }
 }
 
@@ -564,6 +638,23 @@ select.form-control:focus {
 
 @media (max-width: 576px) {
     .planner-popup .planner-content {
-        border-radius: 0;
+        border-radius: var(--glass-radius-shell-compact);
+    }
+
+    .planner-controls .controls-right {
+        width: 100%;
+        max-width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .planner-controls .view-toggle {
+        max-width: 100%;
+        padding: 4px;
+    }
+
+    .planner-controls .view-toggle > .view-btn {
+        padding-inline: 0.65rem;
     }
 }

@@ -180,7 +180,7 @@ def ratelimit_handler(e):
     retry_after = getattr(e, "retry_after", None)
     response = jsonify({
         "status": "error",
-        "message": "Please slow down! You can only make 10 requests per minute.",
+        "message": "Too many requests. Please slow down and try again shortly.",
         "retry_after": retry_after,
         "wait_message": (
             f"Please wait {retry_after} seconds before trying again."
@@ -261,6 +261,10 @@ def get_rooms():
             building_types.append('lecture')
         if request.args.get('type_lab', '').lower() == 'true':
             building_types.append('lab')
+        building_type_filter_active = (
+            request.args.get('filter_building_types', '').lower() == 'true'
+            or bool(building_types)
+        )
         
         # Get campus filters
         campus_filters = []
@@ -272,38 +276,64 @@ def get_rooms():
             campus_filters.append('Livingston')
         if request.args.get('campus_cook_doug', '').lower() == 'true':
             campus_filters.append('Cook/Doug')
-        
-        if filter_available and day and start_time and end_time:
-            # Filter rooms by availability in time range
+        campus_filter_active = (
+            request.args.get('filter_campuses', '').lower() == 'true'
+            or bool(campus_filters)
+        )
+
+        if filter_available and not (day and start_time and end_time):
+            return jsonify({
+                "status": "error",
+                "message": "Day, start time, and end time are required for availability filtering.",
+            }), 400
+        if filter_available:
+            valid_days = {
+                "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday",
+                "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday", "sunday": "Sunday",
+            }
+            day = valid_days.get(day.strip().lower())
+            start_minutes = room_fetcher._time_to_minutes(start_time)
+            end_minutes = room_fetcher._time_to_minutes(end_time)
+            if day is None or start_minutes >= 24 * 60 or end_minutes >= 24 * 60 or start_minutes >= end_minutes:
+                return jsonify({
+                    "status": "error",
+                    "message": "Choose a valid day and an increasing start/end time range.",
+                }), 400
+
+        if (building_type_filter_active and not building_types) or (campus_filter_active and not campus_filters):
+            rooms = []
+        elif filter_available:
+            # Filter rooms by availability while preserving the building and campus selections.
             logger.debug(f"Filtering for available rooms on {day} from {start_time} to {end_time}")
             rooms = room_fetcher.find_available_rooms(
-                day=day, 
+                day=day,
                 start_time=start_time,
                 end_time=end_time,
-                year=params['year'], 
-                term=params['term'], 
+                year=params['year'],
+                term=params['term'],
                 campus=params['campus'],
                 search=search,
-                campus_filters=campus_filters,
+                building_types=building_types if building_type_filter_active else None,
+                campus_filters=campus_filters if campus_filter_active else None,
             )
         else:
-            # Regular room search with filters
+            # Regular room search with the same selected filters.
             rooms = room_fetcher.search_rooms(
-                search, 
-                year=params['year'], 
-                term=params['term'], 
+                search,
+                year=params['year'],
+                term=params['term'],
                 campus=params['campus'],
-                building_types=building_types if building_types else None,
-                campus_filters=campus_filters if campus_filters else None
+                building_types=building_types if building_type_filter_active else None,
+                campus_filters=campus_filters if campus_filter_active else None,
             )
         
         return jsonify({
             "status": "success",
             "data": rooms,
             "count": len(rooms),
-            "filter_applied": filter_available and day and start_time and end_time,
-            "building_types_filtered": bool(building_types),
-            "campus_filtered": bool(campus_filters),
+            "filter_applied": bool(filter_available),
+            "building_types_filtered": building_type_filter_active,
+            "campus_filtered": campus_filter_active,
             "last_update": course_fetcher.last_update
         })
     except Exception as e:

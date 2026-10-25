@@ -7,11 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=3">
-    <link rel="stylesheet" href="/static/css/floating-planner.css?v=2">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=7">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=8">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/course-planner.js"></script>
+    <script src="/static/js/course-planner.js?v=13"></script>
     <script defer src="/static/js/liquid-glass.js?v=1"></script>
     <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
     
@@ -30,7 +30,7 @@
         .availability-status {
             font-weight: bold;
             padding: 5px 10px;
-            border-radius: 5px;
+            border-radius: var(--glass-radius-pill);
             display: inline-block;
         }
         
@@ -52,14 +52,14 @@
             font-size: 0.9rem;
             padding: 5px;
             margin: 2px 0;
-            border-radius: 3px;
+            border-radius: var(--glass-radius-control);
         }
         
         .class-item {
             background-color: #e2e8f0;
             padding: 8px;
             margin-bottom: 10px;
-            border-radius: 4px;
+            border-radius: var(--glass-radius-card);
             border-left: 4px solid #4299E1;
         }
         
@@ -78,7 +78,7 @@
             background-color: #333;
             color: white;
             padding: 12px;
-            border-radius: 4px;
+            border-radius: var(--glass-radius-card);
             width: 280px;
             max-width: 90vw;
             z-index: 1000;
@@ -110,7 +110,7 @@
         
         .day-schedule button.btn-link:hover {
             background-color: #f8f9fa;
-            border-radius: 4px;
+            border-radius: var(--glass-radius-pill);
         }
         
         .day-schedule button.btn-link:focus {
@@ -154,20 +154,20 @@
         </div>
 
         <div class="search-params mt-3 mb-4">
-            <p class="mb-1">
-                <strong>Year:</strong> {{ year }}
-                <strong class="ms-3">Term:</strong> 
+            <div class="search-params-content">
+                <span class="search-param"><strong>Year:</strong> {{ year }}</span>
+                <span class="search-param"><strong>Term:</strong>
                 {% if term == '0' %}Winter
                 {% elif term == '1' %}Spring
                 {% elif term == '7' %}Summer
                 {% elif term == '9' %}Fall
-                {% endif %}
-                <strong class="ms-3">Campus:</strong> 
+                {% endif %}</span>
+                <span class="search-param"><strong>Campus:</strong>
                 {% if campus == 'NB' %}New Brunswick
                 {% elif campus == 'NK' %}Newark
                 {% elif campus == 'CM' %}Camden
-                {% endif %}
-            </p>
+                {% endif %}</span>
+            </div>
         </div>
 
         <!-- Loading spinner -->
@@ -230,6 +230,11 @@
     </div>
 
     <script>
+        const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[character]);
+        const salaryRequestCache = new Map();
+
         // Function to fetch and display salary data
         async function fetchSalaryData(instructorName, element) {
             if (!instructorName || instructorName === 'TBA') return;
@@ -243,40 +248,45 @@
             }
             
             try {
-                const response = await fetch(`/api/salary?name=${encodeURIComponent(instructorName)}`);
-                
-                // Only proceed if we get a successful response
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Direct API response structure
-                    if (data.name && (data.base_pay || data.gross_pay)) {
-                        // Format tooltip with proper layout
-                        tooltipElement.innerHTML = `
-                            <div style="text-align: left;">
-                                <em>Special thanks to Github: ibrahimmudassar for the data</em><br><br>
-                                <em>As of December, 2021</em><br><br>
-                                <strong>${data.name}</strong><br><br>
-                                <strong>Title:</strong> ${data.title}<br>
-                                <strong>Department:</strong> ${data.department}<br>
-                                <strong>Campus:</strong> ${data.campus}<br>
-                                <strong>Base Pay:</strong> ${data.base_pay}<br>
-                                <strong>Gross Pay:</strong> ${data.gross_pay}<br>
-                                <strong>Hire Date:</strong> ${data.hire_date}
-                            </div>
-                        `;
-                        element.classList.add('has-salary-data');
-                        console.log(`Salary data added for ${instructorName}: ${data.name}`);
-                    } else {
-                        tooltipElement.textContent = "No salary data found";
-                    }
+                const cacheKey = instructorName.trim().toLowerCase();
+                let salaryRequest = salaryRequestCache.get(cacheKey);
+                if (!salaryRequest) {
+                    salaryRequest = fetch(`/api/salary?name=${encodeURIComponent(instructorName.trim())}`)
+                        .then(async response => {
+                            if (response.status === 404) return null;
+                            if (!response.ok) throw new Error(`Salary lookup failed (${response.status}).`);
+                            const data = await response.json();
+                            if (!data || typeof data !== 'object' || !data.name) {
+                                throw new Error('Salary lookup returned an invalid response.');
+                            }
+                            return data;
+                        });
+                    salaryRequestCache.set(cacheKey, salaryRequest);
+                }
+                const data = await salaryRequest;
+
+                if (data?.name && (data.base_pay || data.gross_pay)) {
+                    tooltipElement.innerHTML = `
+                        <div style="text-align: left;">
+                            <em>Special thanks to Github: ibrahimmudassar for the data</em><br><br>
+                            <em>As of December, 2021</em><br><br>
+                            <strong>${escapeHTML(data.name)}</strong><br><br>
+                            <strong>Title:</strong> ${escapeHTML(data.title)}<br>
+                            <strong>Department:</strong> ${escapeHTML(data.department)}<br>
+                            <strong>Campus:</strong> ${escapeHTML(data.campus)}<br>
+                            <strong>Base Pay:</strong> ${escapeHTML(data.base_pay)}<br>
+                            <strong>Gross Pay:</strong> ${escapeHTML(data.gross_pay)}<br>
+                            <strong>Hire Date:</strong> ${escapeHTML(data.hire_date)}
+                        </div>
+                    `;
+                    element.classList.add('has-salary-data');
+                    console.log(`Salary data added for ${instructorName}: ${data.name}`);
                 } else {
-                    // Failed to fetch salary data
                     tooltipElement.textContent = "No salary data found";
                 }
             } catch (error) {
+                salaryRequestCache.delete(instructorName.trim().toLowerCase());
                 console.error(`Error fetching salary for ${instructorName}:`, error);
-                // Set error message on tooltip
                 tooltipElement.textContent = "Error fetching salary data";
             }
         }
@@ -287,11 +297,11 @@
             const availabilityRow = document.getElementById('availabilityRow');
             const weeklySchedule = document.getElementById('weeklySchedule');
             
-            const building = '{{ building }}';
-            const room = '{{ room }}';
-            const year = '{{ year }}';
-            const term = '{{ term }}';
-            const campus = '{{ campus }}';
+            const building = {{ building|tojson }};
+            const room = {{ room|tojson }};
+            const year = {{ year|tojson }};
+            const term = {{ term|tojson }};
+            const campus = {{ campus|tojson }};
             
             const params = new URLSearchParams({
                 year: year,
@@ -304,22 +314,29 @@
             try {
                 const response = await fetch(`/api/room-schedule?${params}`);
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to load room schedule');
                 
-                if (data.status === 'success') {
+                if (data.status === 'success' && data.data?.daily_schedule) {
                     const schedule = data.data;
                     
                     // Fill the availability row
                     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                    const dailySchedule = schedule.daily_schedule && typeof schedule.daily_schedule === 'object'
+                        ? schedule.daily_schedule
+                        : {};
                     let availabilityHTML = '';
                     
                     days.forEach(day => {
-                        const daySchedule = schedule.daily_schedule[day];
-                        const statusClass = daySchedule.status === 'Available All Day' ? 'status-available' : 'status-scheduled';
+                        const daySchedule = dailySchedule[day] && typeof dailySchedule[day] === 'object'
+                            ? dailySchedule[day]
+                            : { status: 'Schedule unavailable', classes: [] };
+                        const status = String(daySchedule.status || 'Schedule unavailable');
+                        const statusClass = status === 'Available All Day' ? 'status-available' : 'status-scheduled';
                         
                         availabilityHTML += `
                             <td>
                                 <span class="availability-status ${statusClass}">
-                                    ${daySchedule.status}
+                                    ${escapeHTML(status)}
                                 </span>
                             </td>
                         `;
@@ -333,7 +350,8 @@
                     // Group classes by day for better organization
                     const classesByDay = {};
                     days.forEach(day => {
-                        classesByDay[day] = schedule.daily_schedule[day].classes || [];
+                        const daySchedule = dailySchedule[day];
+                        classesByDay[day] = Array.isArray(daySchedule?.classes) ? daySchedule.classes : [];
                     });
                     
                     // Create a section for each day
@@ -372,7 +390,7 @@
                                             const instructorId = `instructor-${day}-${index}-${Math.random().toString(36).substring(2, 8)}`;
                                             instructorHtml += `
                                                 <span class="instructor-name" id="${instructorId}">
-                                                    ${instructor.name}${index < classItem.instructors.length - 1 ? ', ' : ''}
+                                                    ${escapeHTML(instructor.name)}${index < classItem.instructors.length - 1 ? ', ' : ''}
                                                 </span>
                                             `;
                                             // Will add salary data fetch using setTimeout after rendering
@@ -383,7 +401,7 @@
                                                 }
                                             }, 100);
                                         } else {
-                                            instructorHtml += `${instructor.name || 'TBA'}${index < classItem.instructors.length - 1 ? ', ' : ''}`;
+                                            instructorHtml += `${escapeHTML(instructor.name || 'TBA')}${index < classItem.instructors.length - 1 ? ', ' : ''}`;
                                         }
                                     });
                                     
@@ -392,7 +410,7 @@
                                     const instructorId = `instructor-${day}-text-${Math.random().toString(36).substring(2, 8)}`;
                                     instructorHtml = `
                                         <p class="mb-1"><strong>Instructor:</strong> 
-                                        <span class="instructor-name" id="${instructorId}">${classItem.instructor_text}</span>
+                                        <span class="instructor-name" id="${instructorId}">${escapeHTML(classItem.instructor_text)}</span>
                                         </p>
                                     `;
                                     // Will add salary data fetch using setTimeout after rendering
@@ -410,13 +428,13 @@
                                     <div class="class-item">
                                         <div class="row">
                                             <div class="col-md-8">
-                                                <h6>${classItem.course_code} - ${classItem.course_name}</h6>
-                                                <p class="mb-1"><strong>Section:</strong> ${classItem.section}</p>
+                                                <h6>${escapeHTML(classItem.course_code)} - ${escapeHTML(classItem.course_name)}</h6>
+                                                <p class="mb-1"><strong>Section:</strong> ${escapeHTML(classItem.section)}</p>
                                                 ${instructorHtml}
                                             </div>
                                             <div class="col-md-4 text-md-end">
-                                                <p class="mb-1"><strong>Time:</strong> ${classItem.start_time} - ${classItem.end_time}</p>
-                                                <p class="mb-0"><strong>Mode:</strong> ${classItem.meeting_mode}</p>
+                                                <p class="mb-1"><strong>Time:</strong> ${escapeHTML(classItem.start_time)} - ${escapeHTML(classItem.end_time)}</p>
+                                                <p class="mb-0"><strong>Mode:</strong> ${escapeHTML(classItem.meeting_mode)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -444,11 +462,13 @@
                 
                 // Show error message
                 const container = document.querySelector('.container');
+                const returnUrl = new URL('/room-search', window.location.origin);
+                returnUrl.search = new URLSearchParams({ year, term, campus }).toString();
                 container.innerHTML += `
                     <div class="alert alert-danger mt-4">
                         <h5>Error Loading Schedule</h5>
-                        <p>${error.message || 'Failed to load room schedule. Please try again later.'}</p>
-                        <a href="/room-search?year=${year}&term=${term}&campus=${campus}" class="btn btn-outline-danger mt-2">
+                        <p>${escapeHTML(error.message || 'Failed to load room schedule. Please try again later.')}</p>
+                        <a href="${escapeHTML(returnUrl.pathname + returnUrl.search)}" class="btn btn-outline-danger mt-2">
                             Return to Room Search
                         </a>
                     </div>
@@ -490,10 +510,10 @@
                     <p>Plan and visualize your class schedule</p>
                 </div>
                 <div class="planner-actions">
-                    <button class="btn btn-primary" onclick="closePlanner()">
+                    <button class="btn btn-primary" onclick="searchClassesFromPlanner()" aria-label="Go to course search">
                         <i class="bi bi-search me-1"></i>Search Classes
                     </button>
-                    <button class="btn btn-close" onclick="closePlanner()"></button>
+                    <button class="btn btn-close" onclick="closePlanner()" aria-label="Close planner"></button>
                 </div>
             </div>
 

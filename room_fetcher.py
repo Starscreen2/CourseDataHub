@@ -355,7 +355,8 @@ class RoomFetcher:
 
     def find_available_rooms(self, day: str, start_time: str, end_time: str, year="2026",
                             term="1", campus="NB", campus_filter="", search: str = "",
-                            campus_filters: Optional[List[str]] = None) -> List[Dict]:
+                            campus_filters: Optional[List[str]] = None,
+                            building_types: Optional[List[str]] = None) -> List[Dict]:
         """
         Find rooms that are available during a specific day and time range.
         
@@ -372,11 +373,19 @@ class RoomFetcher:
         # Fetch course data once; room extraction and availability checks both
         # use the same snapshot instead of repeating the expensive enrichment.
         courses = self.course_fetcher.get_courses(year=year, term=term, campus=campus)
-        all_rooms = self.search_rooms(search, year, term, campus, courses=courses)
+        all_rooms = self.search_rooms(
+            search,
+            year,
+            term,
+            campus,
+            building_types=building_types,
+            campus_filters=campus_filters,
+            courses=courses,
+        )
         
         # Apply campus filter if specified
-        filters = campus_filters or ([campus_filter] if campus_filter else [])
-        if filters:
+        filters = [campus_filter] if campus_filter else []
+        if filters and not campus_filters:
             normalized_campuses = {str(value).strip().lower() for value in filters}
             all_rooms = [
                 room for room in all_rooms

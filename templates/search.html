@@ -7,12 +7,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=3">
-    <link rel="stylesheet" href="/static/css/floating-planner.css?v=2">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=7">
+    <link rel="stylesheet" href="/static/css/floating-planner.css?v=8">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script defer src="/static/script.js?v=2"></script>
-    <script src="/static/js/course-planner.js"></script>
+    <script defer src="/static/script.js?v=5"></script>
+    <script src="/static/js/course-planner.js?v=13"></script>
     <script defer src="/static/js/liquid-glass.js?v=1"></script>
     <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
@@ -47,21 +47,21 @@
         <h2 class="mb-4">Search</h2>
 
         <div class="search-params mt-4">
-            <p class="mb-1">
-                <strong>Year:</strong> {{ year }}
-                <strong class="ms-3">Term:</strong> 
+            <div class="search-params-content">
+                <span class="search-param"><strong>Year:</strong> {{ year }}</span>
+                <span class="search-param"><strong>Term:</strong>
                 {% if term == '0' %}Winter
                 {% elif term == '1' %}Spring
                 {% elif term == '7' %}Summer
                 {% elif term == '9' %}Fall
-                {% endif %}
-                <strong class="ms-3">Campus:</strong> 
+                {% endif %}</span>
+                <span class="search-param"><strong>Campus:</strong>
                 {% if campus == 'NB' %}New Brunswick
                 {% elif campus == 'NK' %}Newark
                 {% elif campus == 'CM' %}Camden
-                {% endif %}
-                <a href="/" class="btn btn-sm btn-outline-secondary float-end">Change</a>
-            </p>
+                {% endif %}</span>
+                <a href="/" class="btn btn-sm btn-outline-secondary">Change</a>
+            </div>
         </div>
 
         <!-- Main tabs -->
@@ -435,10 +435,10 @@
                     <p>Plan and visualize your class schedule</p>
                 </div>
                 <div class="planner-actions">
-                    <button class="btn btn-primary" onclick="closePlanner()">
-                        <i class="bi bi-search me-1"></i>Search Classes
+                    <button class="btn btn-primary" onclick="closePlanner()" aria-label="Close planner and return to course search">
+                        <i class="bi bi-search me-1"></i><span class="planner-search-label">Search Classes</span>
                     </button>
-                    <button class="btn btn-close" onclick="closePlanner()"></button>
+                    <button class="btn btn-close" onclick="closePlanner()" aria-label="Close planner"></button>
                 </div>
             </div>
 
@@ -494,7 +494,7 @@
                 <div class="planner-main">
                     <!-- Calendar View -->
                     <div id="calendarView" class="calendar-view">
-                        <div class="weekly-calendar">
+                        <div class="weekly-calendar" role="region" aria-label="Weekly class calendar. Scroll horizontally to view all weekdays." tabindex="0">
                             <div class="calendar-header">
                                 <div class="time-column"></div>
                                 <div class="day-header">Monday</div>
@@ -595,175 +595,12 @@
             document.getElementById('schoolFilter').value = '';
             document.getElementById('coreCodeFilter').value = '';
             document.getElementById('subjectFilter').value = '';
+
+            // Refresh the visible results so they match the reset controls.
+            document.getElementById('searchForm').requestSubmit();
         });
 
-        document.getElementById('searchForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const search = document.getElementById('search').value;
-            const loadingSpinner = document.getElementById('loadingSpinner');
-            const resultsDiv = document.getElementById('results');
 
-            loadingSpinner.style.display = 'block';
-            resultsDiv.innerHTML = '';
-
-            // Collect filter values
-            const params = new URLSearchParams({
-                year: '{{ year }}',
-                term: '{{ term }}',
-                campus: '{{ campus }}',
-                search: search
-            });
-
-            // Add status filters
-            if (document.getElementById('statusOpen').checked) {
-                params.append('status_open', 'true');
-            }
-            if (document.getElementById('statusClosed').checked) {
-                params.append('status_closed', 'true');
-            }
-
-            // Add course type filters
-            if (document.getElementById('typeTraditional').checked) {
-                params.append('type_traditional', 'true');
-            }
-            if (document.getElementById('typeHybrid').checked) {
-                params.append('type_hybrid', 'true');
-            }
-            if (document.getElementById('typeOnline').checked) {
-                params.append('type_online', 'true');
-            }
-
-
-            // Add campus filters
-            if (document.getElementById('campusCollegeAve').checked) {
-                params.append('campus_college_ave', 'true');
-            }
-            if (document.getElementById('campusBusch').checked) {
-                params.append('campus_busch', 'true');
-            }
-            if (document.getElementById('campusLivingston').checked) {
-                params.append('campus_livingston', 'true');
-            }
-            if (document.getElementById('campusCookDoug').checked) {
-                params.append('campus_cook_doug', 'true');
-            }
-            if (document.getElementById('campusOnline').checked) {
-                params.append('campus_online', 'true');
-            }
-
-            // Add school filter
-            const schoolFilter = document.getElementById('schoolFilter').value;
-            if (schoolFilter) {
-                params.append('school', schoolFilter);
-            }
-
-            // Add core code filter
-            const coreCodeFilter = document.getElementById('coreCodeFilter').value;
-            if (coreCodeFilter) {
-                params.append('core_code', coreCodeFilter);
-            }
-
-            // Add subject filter
-            const subjectFilter = document.getElementById('subjectFilter').value;
-            if (subjectFilter) {
-                params.append('subject', subjectFilter);
-            }
-
-            try {
-                const response = await fetch(`/api/courses?${params}`);
-                const data = await response.json();
-
-                loadingSpinner.style.display = 'none';
-
-                if (data.status === 'success' && data.data.length > 0) {
-                    resultsDiv.innerHTML = data.data.map((course, courseIndex) => `
-                        <div class="search-result-item card mb-4">
-                            <div class="card-header">
-                                <h4 class="mb-0">${course.courseString} - ${course.title}</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <p><strong>Subject:</strong> ${course.subject} - ${course.subjectDescription}</p>
-                                        <p><strong>Credits:</strong> ${course.creditsDescription || course.credits}</p>
-                                        <p><strong>School:</strong> ${course.school || 'N/A'}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p><strong>Campus Locations:</strong> ${course.campusLocations.join(', ') || 'N/A'}</p>
-                                        <p><strong>Prerequisites:</strong> ${course.prerequisites || 'None'}</p>
-                                        <p><strong>Core Codes:</strong> ${Array.isArray(course.coreRequirements) && course.coreRequirements.length > 0 ? 
-                                            course.coreRequirements.map(core => `${core.code} (${core.description})`).join(', ') : 'N/A'}</p>
-                                    </div>
-                                </div>
-
-                                <div class="sections">
-                                    <button class="btn btn-primary mb-3" type="button" 
-                                            data-bs-toggle="collapse" 
-                                            data-bs-target="#sections-${courseIndex}" 
-                                            aria-expanded="false" 
-                                            aria-controls="sections-${courseIndex}">
-                                        Show/Hide ${course.sections.length} Sections
-                                    </button>
-                                    <div class="collapse" id="sections-${courseIndex}">
-                                        ${course.sections.map(section => `
-                                            <div class="section-item card mb-3">
-                                                <div class="card-body">
-                                                    <h6>Section ${section.number} (Index: ${section.index} <button class="copy-button" onclick="copyToClipboard('${section.index}')" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy index number"><i class="bi bi-clipboard"></i></button>)</h6>
-                                                    <p><strong>Instructors:</strong> 
-                                                        ${section.instructors.map(instructor => `
-                                                            <span class="instructor-name" 
-                                                                  data-bs-toggle="tooltip" 
-                                                                  data-bs-placement="top" 
-                                                                  title="Loading data...">
-                                                                  ${instructor}
-                                                            </span>`).join(', ') || 'TBA'}
-                                                    </p>
-                                                    <p><strong>Status:</strong> <span class="${section.status.toLowerCase() === 'open' ? 'status-open' : 'status-closed'}">${section.status}</span></p>
-                                                    <div class="meeting-times">
-                                                        <strong>Meeting Times:</strong><br>
-                                                        ${section.meeting_times.map(time => `
-                                                            <p>
-                                                                ${time.day || 'TBA'} 
-                                                                ${time.start_time.formatted} - ${time.end_time.formatted}<br>
-                                                                Location: ${time.building} ${time.room}<br>
-                                                                Campus: ${time.campus}<br>
-                                                                Mode: ${time.mode}
-                                                            </p>
-                                                        `).join('')}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-                    tooltipTriggerList.forEach(tooltipEl => new bootstrap.Tooltip(tooltipEl));
-                    
-                    // Add planner buttons after rendering (without interfering with existing functionality)
-                    setTimeout(addPlannerButtons, 100);
-                    setTimeout(addPlannerButtons, 500); // Second attempt
-                    setTimeout(addPlannerButtons, 1000); // Third attempt
-                    
-                    // Also add buttons when sections are expanded
-                    const collapseButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
-                    collapseButtons.forEach(button => {
-                        button.addEventListener('shown.bs.collapse', function() {
-                            setTimeout(addPlannerButtons, 50);
-                        });
-                    });
-                } else {
-                    resultsDiv.innerHTML = '<div class="alert alert-info">No courses found</div>';
-                }
-            } catch (error) {
-                loadingSpinner.style.display = 'none';
-                console.error('Error searching courses:', error);
-                resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching courses</div>';
-            }
-        });
 
         // Floating Course Planner JavaScript
         // Global variables and initialization are now handled in course-planner.js
@@ -841,132 +678,51 @@
             
             console.log(`Found ${sectionCards.length} section cards to process`);
             
-            sectionCards.forEach((sectionCard, index) => {
-                const existingButton = sectionCard.querySelector('.add-to-planner-btn');
-                
-                if (!existingButton) {
-                    console.log(`Adding button to section ${index + 1}`);
-                    const addButton = document.createElement('button');
-                    addButton.className = 'btn btn-outline-primary add-to-planner-btn mt-2';
-                    addButton.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Planner';
-                    addButton.onclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        try {
-                            // Extract course data from the parent course card
-                            const courseCard = sectionCard.closest('.search-result-item');
-                            if (!courseCard) {
-                                console.error('Course card not found');
-                                return;
-                            }
-                            
-                            const courseTitle = courseCard.querySelector('h4');
-                            if (!courseTitle) {
-                                console.error('Course title not found');
-                                return;
-                            }
-                            
-                            const titleParts = courseTitle.textContent.split(' - ');
-                            const courseString = titleParts[0] || '';
-                            const title = titleParts[1] || '';
-                            
-                            console.log('Course string:', courseString, 'Title:', title);
-                            
-                            // Extract course details more safely
-                            const courseDetails = courseCard.querySelectorAll('.col-md-6 p');
-                            let subject = '', credits = '', school = '';
-                            
-                            courseDetails.forEach(p => {
-                                const text = p.textContent;
-                                if (text.includes('Subject:')) {
-                                    subject = text.replace('Subject:', '').trim();
-                                } else if (text.includes('Credits:')) {
-                                    credits = text.replace('Credits:', '').trim();
-                                } else if (text.includes('School:')) {
-                                    school = text.replace('School:', '').trim();
-                                }
-                            });
-                            
-                            // Extract section data
-                            const sectionHeader = sectionCard.querySelector('h6');
-                            if (!sectionHeader) {
-                                console.error('Section header not found');
-                                return;
-                            }
-                            
-                            const sectionText = sectionHeader.textContent;
-                            const sectionNumber = sectionText.match(/Section (\d+)/)?.[1] || '';
-                            const sectionIndex = sectionText.match(/Index: (\d+)/)?.[1] || '';
-                            
-                            console.log('Section number:', sectionNumber, 'Index:', sectionIndex);
-                            
-                            // Extract status
-                            const statusElement = sectionCard.querySelector('.status-open, .status-closed');
-                            const status = statusElement ? statusElement.textContent : 'Unknown';
-                            
-                            // Extract instructors
-                            const instructorElements = sectionCard.querySelectorAll('.instructor-name');
-                            const instructors = Array.from(instructorElements).map(el => el.textContent.trim()).filter(Boolean);
-                            
-                            // Extract meeting times
-                            const meetingTimes = [];
-                            const meetingTimeElements = sectionCard.querySelectorAll('.meeting-times p');
-                            meetingTimeElements.forEach(timeEl => {
-                                const text = timeEl.textContent;
-                                const dayMatch = text.match(/(\w+)/);
-                                const timeMatch = text.match(/(\d{1,2}:\d{2} [AP]M) - (\d{1,2}:\d{2} [AP]M)/);
-                                const locationMatch = text.match(/Location: ([^C]+)/);
-                                const campusMatch = text.match(/Campus: ([^M]+)/);
-                                
-                                if (dayMatch && timeMatch) {
-                                    meetingTimes.push({
-                                        day: dayMatch[1],
-                                        startTime: { formatted: timeMatch[1] },
-                                        endTime: { formatted: timeMatch[2] },
-                                        building: locationMatch ? locationMatch[1].trim() : '',
-                                        campus: campusMatch ? campusMatch[1].trim() : ''
-                                    });
-                                }
-                            });
-                            
-                            console.log('Meeting times:', meetingTimes);
-                            
-                            const course = {
-                                courseString: courseString,
-                                title: title,
-                                subject: subject,
-                                credits: credits,
-                                school: school,
-                                campusLocations: [],
-                                selectedSection: {
-                                    number: sectionNumber,
-                                    index: sectionIndex,
-                                    status: status,
-                                    instructors: instructors.length > 0 ? instructors : ['TBA'],
-                                    meetingTimes: meetingTimes
-                                }
-                            };
-                            
-                            console.log('Course object:', course);
-                            addCourseToPlanner(course);
-                        } catch (error) {
-                            console.error('Error adding course to planner:', error);
-                            showNotification('Error adding course to planner: ' + error.message, 'danger');
+            sectionCards.forEach((sectionCard) => {
+                if (sectionCard.querySelector('.add-to-planner-btn')) return;
+
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'btn btn-outline-primary add-to-planner-btn mt-2';
+                addButton.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Planner';
+                addButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const courseIndex = Number(sectionCard.dataset.courseIndex);
+                    const courseData = window.courseSearchData?.[courseIndex];
+                    const sectionData = (courseData?.sections || []).find(
+                        (section) => String(section.index) === sectionCard.dataset.sectionIndex
+                    );
+                    if (!courseData || !sectionData) {
+                        showNotification('Could not load this section. Search again and retry.', 'danger');
+                        return;
+                    }
+
+                    const course = {
+                        ...courseData,
+                        selectedSection: {
+                            number: sectionData.number,
+                            index: String(sectionData.index),
+                            status: sectionData.status || 'Unknown',
+                            instructors: Array.isArray(sectionData.instructors) && sectionData.instructors.length
+                                ? sectionData.instructors
+                                : ['TBA'],
+                            meetingTimes: (sectionData.meeting_times || []).map((meeting) => ({
+                                day: meeting.day || 'TBA',
+                                startTime: { formatted: meeting.start_time?.formatted || 'TBA' },
+                                endTime: { formatted: meeting.end_time?.formatted || 'TBA' },
+                                building: meeting.building || '',
+                                room: meeting.room || '',
+                                campus: meeting.campus || ''
+                            }))
                         }
                     };
-                    
-                    // Add button to the section card body
-                    const sectionBody = sectionCard.querySelector('.card-body');
-                    if (sectionBody) {
-                        sectionBody.appendChild(addButton);
-                        console.log(`Button added to section ${index + 1}`);
-                    } else {
-                        console.log(`No card-body found for section ${index + 1}`);
-                    }
-                } else {
-                    console.log(`Button already exists for section ${index + 1}`);
-                }
+                    addCourseToPlanner(course);
+                });
+
+                const sectionBody = sectionCard.querySelector('.card-body');
+                if (sectionBody) sectionBody.appendChild(addButton);
             });
         }
 

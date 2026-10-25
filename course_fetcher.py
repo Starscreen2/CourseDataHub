@@ -66,9 +66,8 @@ class CourseFetcher:
             return "N/A"
 
     def _mark_refresh_failed(self, param_key: str) -> None:
-        """Avoid hammering the upstream API when a stale cache refresh fails."""
-        if param_key in self.courses_by_params:
-            self.updated_at_by_params[param_key] = datetime.now(timezone.utc)
+        """Back off after an unsuccessful fetch, even before data is cached."""
+        self.updated_at_by_params[param_key] = datetime.now(timezone.utc)
 
     def format_weekday(self, day: str) -> str:
         """Convert weekday code to full name"""
@@ -176,6 +175,7 @@ class CourseFetcher:
 
             if not courses:
                 logger.warning("Received empty course list from API")
+                self._mark_refresh_failed(param_key)
                 return False
 
             self.courses_by_params[param_key] = sorted(
@@ -237,6 +237,29 @@ class CourseFetcher:
                 is_specific_course_query = True
                 subject_part = dept_abbrevs.get(potential_dept, potential_dept)
                 number_part = potential_number
+        elif len(query_parts) > 2 and query_parts[-1].isdigit():
+            # Full subject names such as "computer science 111" should be
+            # constrained to that subject and course number instead of fuzzy
+            # matching every course whose subject shares the query words. Only
+            # treat the phrase as a subject when it matches a real description;
+            # title phrases such as "data structures 112" should stay fuzzy.
+            department_query = " ".join(query_parts[:-1])
+            descriptions = {
+                str(course.get("subjectDescription") or "").strip().lower()
+                for course in courses
+            }
+            matching_descriptions = [
+                description for description in descriptions
+                if description and (
+                    department_query == description
+                    or department_query.endswith(f" {description}")
+                    or description.endswith(f" {department_query}")
+                )
+            ]
+            if matching_descriptions:
+                is_specific_course_query = True
+                subject_part = max(matching_descriptions, key=len)
+                number_part = query_parts[-1]
         elif len(query_parts) == 1 and len(query_parts[0].split(":")) == 3:
             # Full Rutgers codes include school, subject, and course number
             # (for example, "01:198:111"). Treat them as specific queries so
@@ -274,7 +297,11 @@ class CourseFetcher:
             try:
                 for section in course.get("sections", []) or []:
                     for instr in section.get("instructors", []) or []:
-                        raw_name = (instr.get("name", "") or "").strip()
+                        raw_name = (
+                            instr.get("name", "")
+                            if isinstance(instr, dict)
+                            else str(instr or "")
+                        ).strip()
                         if not raw_name:
                             continue
                         # Use utility function to generate all name variants
@@ -645,7 +672,7 @@ class CourseFetcher:
                 or (datetime.now(timezone.utc) - cached_at).total_seconds()
                 >= self.cache_ttl_seconds
             )
-            if param_key not in self.courses_by_params or is_stale:
+            if is_stale:
                 lock = self._locks.setdefault(param_key, threading.Lock())
                 with lock:
                     cached_at = self.updated_at_by_params.get(param_key)
@@ -655,7 +682,7 @@ class CourseFetcher:
                         or (datetime.now(timezone.utc) - cached_at).total_seconds()
                         >= self.cache_ttl_seconds
                     )
-                    if param_key not in self.courses_by_params or is_stale:
+                    if is_stale:
                         self.update_courses(year, term, campus)
 
             if not self.courses_by_params.get(param_key):

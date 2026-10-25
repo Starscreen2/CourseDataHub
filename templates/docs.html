@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism.min.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
-    <link href="/static/css/liquid-glass.css?v=10" rel="stylesheet">
+    <link href="/static/css/liquid-glass.css?v=11" rel="stylesheet">
     {% if is_vercel_deployment %}
     <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
     {% endif %}
@@ -39,7 +39,7 @@
                     <pre><code class="language-bash">curl "http://localhost:5000/api/courses?subject=198&amp;course_number=111"</code></pre>
 
                     <h4>Example Response</h4>
-                    <pre><code class="language-json" id="example-response">
+                    <pre><code class="language-json endpoint-response">
 {
     "status": "success",
     "data": [...],
@@ -48,7 +48,7 @@
                     </code></pre>
                 </div>
 
-                <button class="btn btn-primary mt-3" onclick="testEndpoint('/api/courses')">Test Endpoint</button>
+                <button class="btn btn-primary mt-3" onclick="testEndpoint('/api/courses?subject=198&amp;course_number=111', this)">Test Endpoint</button>
             </div>
 
             <div class="endpoint-card">
@@ -57,7 +57,7 @@
 
                 <div class="example">
                     <h4>Example Response</h4>
-                    <pre><code class="language-json">
+                    <pre><code class="language-json endpoint-response">
 {
     "status": "healthy",
     "last_update": "2024-02-15T10:30:00"
@@ -65,7 +65,7 @@
                     </code></pre>
                 </div>
 
-                <button class="btn btn-primary mt-3" onclick="testEndpoint('/api/health')">Test Endpoint</button>
+                <button class="btn btn-primary mt-3" onclick="testEndpoint('/api/health', this)">Test Endpoint</button>
             </div>
         </section>
 

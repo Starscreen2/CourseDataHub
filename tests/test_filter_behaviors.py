@@ -1,6 +1,7 @@
 import os
 import unittest
-from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
+from unittest.mock import Mock, patch
 
 import app as app_module
 from course_fetcher import CourseFetcher
@@ -145,6 +146,85 @@ class CourseFilterTests(unittest.TestCase):
         result = self.fetcher.fuzzy_search_courses(courses, "01:198:111")
 
         self.assertEqual([course["courseString"] for course in result], ["01:198:111"])
+
+    def test_multiword_subject_and_number_search_is_specific(self):
+        courses = [
+            {
+                "courseString": "01:198:111",
+                "subject": "198",
+                "courseNumber": "111",
+                "subjectDescription": "Computer Science",
+                "sections": [],
+            },
+            {
+                "courseString": "01:198:112",
+                "subject": "198",
+                "courseNumber": "112",
+                "subjectDescription": "Computer Science",
+                "sections": [],
+            },
+            {
+                "courseString": "01:640:111",
+                "subject": "640",
+                "courseNumber": "111",
+                "subjectDescription": "Mathematics",
+                "sections": [],
+            },
+        ]
+
+        for query in ("computer science 111", "intro to computer science 111"):
+            with self.subTest(query=query):
+                result = self.fetcher.fuzzy_search_courses(courses, query)
+                self.assertEqual([course["courseString"] for course in result], ["01:198:111"])
+
+        result = self.fetcher.fuzzy_search_courses(courses, "data structures 112")
+        self.assertEqual([course["courseString"] for course in result], ["01:198:112"])
+
+    def test_instructor_search_accepts_string_names_from_upstream(self):
+        courses = [{
+            "courseString": "01:198:111",
+            "subject": "198",
+            "courseNumber": "111",
+            "sections": [{"instructors": ["DOE, JANE"]}],
+        }]
+
+        result = self.fetcher.fuzzy_search_courses(courses, "Jane Doe")
+
+        self.assertEqual([course["courseString"] for course in result], ["01:198:111"])
+
+    def test_empty_initial_response_is_backed_off_until_cache_ttl_expires(self):
+        response = Mock()
+        response.json.return_value = []
+        with patch.object(self.fetcher.session, "get", return_value=response) as get:
+            self.assertEqual(self.fetcher.get_courses(), [])
+            self.assertEqual(self.fetcher.get_courses(), [])
+
+        get.assert_called_once()
+
+    def test_failed_initial_fetch_is_backed_off_until_cache_ttl_expires(self):
+        with patch.object(
+            self.fetcher.session, "get", side_effect=RuntimeError("upstream unavailable")
+        ) as get:
+            with self.assertLogs("course_fetcher", level="ERROR"):
+                self.assertEqual(self.fetcher.get_courses(), [])
+                self.assertEqual(self.fetcher.get_courses(), [])
+
+        get.assert_called_once()
+
+    def test_empty_refresh_preserves_stale_data_and_backs_off(self):
+        key = "2026_1_NB"
+        self.fetcher.courses_by_params[key] = [{"courseString": "01:198:111"}]
+        self.fetcher.updated_at_by_params[key] = datetime.now(timezone.utc) - timedelta(hours=1)
+        response = Mock()
+        response.json.return_value = []
+
+        with patch.object(self.fetcher.session, "get", return_value=response) as get:
+            result = self.fetcher.get_courses()
+            self.assertEqual(self.fetcher.get_courses(), result)
+
+        get.assert_called_once()
+        self.assertEqual([course["courseString"] for course in result], ["01:198:111"])
+        self.assertGreater(self.fetcher.updated_at_by_params[key], datetime.now(timezone.utc) - timedelta(seconds=5))
 
 
 class AppRenderingTests(unittest.TestCase):

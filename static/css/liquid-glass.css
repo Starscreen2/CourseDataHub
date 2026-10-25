@@ -457,6 +457,11 @@ select.form-control:focus {
     white-space: nowrap;
 }
 
+.filter-summary {
+    /* Reserve space for the fixed planner control near the viewport edge. */
+    padding-right: 3.5rem;
+}
+
 .room-search-error {
     border-radius: var(--glass-radius-card);
 }

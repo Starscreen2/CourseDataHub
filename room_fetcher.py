@@ -57,10 +57,16 @@ class RoomFetcher:
         for course in courses:
             for section in course.get('sections', []):
                 for meeting_time in section.get('meeting_times', []):
-                    building = meeting_time.get('building', '')
-                    room = meeting_time.get('room', '')
+                    building = str(meeting_time.get('building') or '').strip()
+                    room = str(meeting_time.get('room') or '').strip()
                     
-                    if not building or not room:
+                    placeholders = {'n/a', 'na', 'none', 'null'}
+                    if (
+                        not building
+                        or not room
+                        or building.casefold() in placeholders
+                        or room.casefold() in placeholders
+                    ):
                         continue
                         
                     room_key = f"{building}_{room}"

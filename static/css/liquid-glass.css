@@ -616,6 +616,21 @@ select.form-control:focus {
         font-size: 1.1rem;
     }
 
+    .room-details-heading {
+        align-items: flex-start !important;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .room-details-heading > .btn {
+        margin-right: 0 !important;
+    }
+
+    .room-details-heading h2 {
+        font-size: 1.35rem;
+        line-height: 1.25;
+    }
+
     .search-params-content {
         column-gap: 0.75rem;
     }

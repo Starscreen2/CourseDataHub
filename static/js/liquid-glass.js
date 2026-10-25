@@ -27,7 +27,7 @@
     const SVG_NS = "http://www.w3.org/2000/svg";
     const reduceMotion = typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const settleDuration = reduceMotion ? 0 : 300;
+    const settleDuration = reduceMotion ? 0 : 280;
     const supportsSvgBackdropFilter = Boolean(
         window.CSS && typeof window.CSS.supports === "function" && (
             window.CSS.supports("backdrop-filter", "url(#liquid-glass-filter)") ||
@@ -515,7 +515,9 @@
         }, true);
 
         container.addEventListener("contextmenu", (event) => {
-            if (gesture?.dragging) event.preventDefault();
+            // Suppress long-press menus while a touch is active without
+            // disabling the native right-click menu for mouse users.
+            if (activeTouchId !== null || gesture?.dragging) event.preventDefault();
         });
         container.addEventListener("dragstart", (event) => {
             if (gesture?.dragging) event.preventDefault();

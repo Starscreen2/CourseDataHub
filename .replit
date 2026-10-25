@@ -1,4 +1,4 @@
-modules = ["python-3.11"]
+modules = ["python-3.12"]
 
 [nix]
 channel = "stable-24_05"
@@ -11,24 +11,8 @@ run = ["sh", "-c", "python main.py"]
 [workflows]
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Flask Server"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py & python discord_bot.py"
-
-[[workflows.workflow]]
 name = "Flask Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
+mode = "parallel"
 
 [[workflows.workflow.tasks]]
 task = "packager.installForAll"
@@ -37,18 +21,6 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "python main.py"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Discord Bot"
-author = 20546446
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python app.py"
-
-[[ports]]
-localPort = 3000
-externalPort = 3000
 
 [[ports]]
 localPort = 5000

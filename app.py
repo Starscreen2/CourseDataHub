@@ -1,7 +1,7 @@
 import os
 import logging
 
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from course_fetcher import CourseFetcher
@@ -15,6 +15,23 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.environ.get("SESSION_SECRET") or os.urandom(32)
+
+
+@app.context_processor
+def expose_deployment_flags():
+    """Load Vercel-only integrations only when running on Vercel."""
+    return {"is_vercel_deployment": os.environ.get("VERCEL") == "1"}
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve the bundled icon instead of returning a browser-visible 404."""
+    return send_from_directory(
+        app.root_path,
+        'generated-icon.png',
+        mimetype='image/png',
+        max_age=86400,
+    )
 
 # Same-origin requests (the bundled frontend) do not need CORS. If the API is
 # intentionally consumed by another origin, opt in with CORS_ORIGIN.

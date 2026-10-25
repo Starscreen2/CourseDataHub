@@ -8,7 +8,7 @@ main_url = "https://sasundergrad.rutgers.edu/majors-and-core-curriculum/major/li
 
 # Send HTTP GET request
 headers = {"User-Agent": "Mozilla/5.0"}
-response = requests.get(main_url, headers=headers)
+response = requests.get(main_url, headers=headers, timeout=(5, 20))
 
 # Check if the request was successful
 if response.status_code != 200:

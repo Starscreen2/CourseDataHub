@@ -130,7 +130,7 @@ class CourseFetcher:
                 section.get("index", ""),
                 "instructors": [
                     instr.get("name", "") if isinstance(instr, dict) else str(instr)
-                    for instr in section.get("instructors", [])
+                    for instr in (section.get("instructors") or [])
                 ],
                 "status":
                 section.get("openStatusText", ""),
@@ -138,7 +138,7 @@ class CourseFetcher:
                 section.get("commentsText", ""),
                 "meeting_times": [
                     self.format_meeting_time(meeting)
-                    for meeting in section.get("meetingTimes", [])
+                    for meeting in (section.get("meetingTimes") or [])
                 ]
             }
         except Exception as e:

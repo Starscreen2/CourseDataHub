@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -121,6 +122,19 @@ class CourseFilterTests(unittest.TestCase):
     def test_invalid_military_time_does_not_match_a_time_filter(self):
         self.assertFalse(self.fetcher._is_time_in_range("1260", "afternoon"))
 
+    def test_section_with_null_lists_keeps_valid_section_metadata(self):
+        result = self.fetcher.format_section({
+            "number": "01",
+            "openStatusText": "Open",
+            "instructors": None,
+            "meetingTimes": None,
+        })
+
+        self.assertEqual(result["number"], "01")
+        self.assertEqual(result["status"], "Open")
+        self.assertEqual(result["instructors"], [])
+        self.assertEqual(result["meeting_times"], [])
+
     def test_full_course_code_search_does_not_return_fuzzy_lookalikes(self):
         courses = [
             {"courseString": "01:198:111", "subject": "198", "courseNumber": "111", "sections": []},
@@ -133,7 +147,47 @@ class CourseFilterTests(unittest.TestCase):
         self.assertEqual([course["courseString"] for course in result], ["01:198:111"])
 
 
+class AppRenderingTests(unittest.TestCase):
+    def test_vercel_analytics_loads_only_on_vercel(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("VERCEL", None)
+            response = app_module.app.test_client().get("/docs")
+            self.assertNotIn(b"cdn.vercel-insights.com", response.data)
+
+        with patch.dict(os.environ, {"VERCEL": "1"}):
+            response = app_module.app.test_client().get("/docs")
+            self.assertIn(b"cdn.vercel-insights.com", response.data)
+
+    def test_favicon_is_served_from_the_bundled_image(self):
+        with app_module.app.test_client() as client:
+            response = client.get("/favicon.ico")
+            try:
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.mimetype, "image/png")
+                self.assertTrue(response.data.startswith(b"\x89PNG\r\n\x1a\n"))
+            finally:
+                response.close()
+
+
 class RoomFilterTests(unittest.TestCase):
+    def test_room_extraction_skips_missing_and_placeholder_locations(self):
+        class FakeCourseFetcher:
+            def get_courses(self, **_kwargs):
+                return []
+
+        fetcher = RoomFetcher(FakeCourseFetcher())
+        rooms = fetcher._extract_rooms_from_courses([{
+            "sections": [{
+                "meeting_times": [
+                    {"building": "N/A", "room": "N/A"},
+                    {"building": " ", "room": "103"},
+                    {"building": "ARC", "room": "103"},
+                ]
+            }]
+        }])
+
+        self.assertEqual([(room["building"], room["room"]) for room in rooms], [("ARC", "103")])
+
     def test_room_details_without_a_room_shows_the_validation_message(self):
         response = app_module.app.test_client().get(
             "/room-details?year=2026&term=1&campus=NB"
